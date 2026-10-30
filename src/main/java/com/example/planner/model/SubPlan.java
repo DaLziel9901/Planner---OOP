@@ -139,36 +139,14 @@ public class SubPlan implements PlanNode {
         if (subPlan == null) {
             throw new IllegalArgumentException("SubPlan không được null");
         }
-        if (subPlan.containsSubPlan(this)) {
-            throw new IllegalArgumentException("Thêm SubPlan sẽ tạo vòng lặp");
-        }
         if (!Objects.equals(planId, subPlan.getPlanId())
                 || (subPlan.getParentSubPlanId() != null
                 && !subPlan.getParentSubPlanId().equals(id))) {
             throw new IllegalArgumentException("SubPlan con khác Plan hoặc khác cha");
         }
-        for (SubPlan existing : subPlans) {
-            if (existing == subPlan || (subPlan.getId() != null && subPlan.getId().equals(existing.getId()))) {
-                throw new IllegalArgumentException("SubPlan đã có trong nhánh");
-            }
-        }
         subPlans.add(subPlan);
     }
 
-    // Chặn tự thêm và thêm tổ tiên làm con, kể cả khi chưa có ID.
-    private boolean containsSubPlan(SubPlan candidate) {
-        if (this == candidate || (id != null && id.equals(candidate.getId()))) {
-            return true;
-        }
-        for (SubPlan child : subPlans) {
-            if (child.containsSubPlan(candidate)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // Chỉ thay đổi cây trong bộ nhớ, không DELETE DB hay tự đổi FK.
     public boolean removeTask(Task task) {
         return tasks.remove(task);
     }
