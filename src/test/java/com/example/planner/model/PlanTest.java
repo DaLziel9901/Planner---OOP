@@ -9,6 +9,37 @@ import static org.junit.jupiter.api.Assertions.*;
 class PlanTest {
 
     @Test
+    void distinctNodesMayHaveIdenticalTitles() {
+        Plan plan = new Plan("Trùng tên");
+        Plan otherPlan = new Plan("Trùng tên");
+        assertEquals(plan.getName(), otherPlan.getName());
+        SubPlan first = new SubPlan("Giai đoạn");
+        SubPlan second = new SubPlan("Giai đoạn");
+        plan.addSubPlan(first);
+        plan.addSubPlan(second);
+        Task taskA = new Task("Học từ");
+        Task taskB = new Task("Học từ");
+        SubTask leafA = new SubTask("20 từ");
+        SubTask leafB = new SubTask("20 từ");
+        taskA.addSubTask(leafA);
+        taskA.addSubTask(leafB);
+        plan.addTask(taskA);
+        plan.addTask(taskB);
+        first.addTask(new Task("Công việc"));
+        first.addTask(new Task("Công việc"));
+        first.addSubPlan(new SubPlan("Nhánh"));
+        first.addSubPlan(new SubPlan("Nhánh"));
+
+        assertEquals(2, plan.getSubPlans().size());
+        assertEquals(2, plan.getTasks().size());
+        assertEquals(2, first.getTasks().size());
+        assertEquals(2, first.getSubPlans().size());
+        assertEquals(2, plan.getTotalCount());
+        leafA.markDone();
+        assertEquals(50.0, plan.getProgress(), 0.001);
+    }
+
+    @Test
     void emptyNodesDoNotIncreaseDenominator() {
         Plan plan = new Plan("TOEIC");
         plan.addTask(new Task("Rỗng"));

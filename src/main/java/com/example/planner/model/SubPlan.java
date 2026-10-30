@@ -47,8 +47,8 @@ public class SubPlan implements PlanNode {
     }
 
     public void setId(Long id) {
-        if (id != null && id <= 0) {
-            throw new IllegalArgumentException("id phải lớn hơn 0");
+        if (id != null && (id <= 0 || id.equals(parentSubPlanId))) {
+            throw new IllegalArgumentException("id phải dương và khác ID SubPlan cha");
         }
         this.id = id;
     }
@@ -132,6 +132,12 @@ public class SubPlan implements PlanNode {
                 || (task.getSubPlanId() != null && !task.getSubPlanId().equals(id))) {
             throw new IllegalArgumentException("Task không thuộc SubPlan này");
         }
+        // Trùng tên hợp lệ; cùng đối tượng hoặc cùng ID thì không thêm lại.
+        for (Task existing : tasks) {
+            if (existing == task || (task.getId() != null && task.getId().equals(existing.getId()))) {
+                throw new IllegalArgumentException("Task đã có trong SubPlan");
+            }
+        }
         tasks.add(task);
     }
 
@@ -139,12 +145,32 @@ public class SubPlan implements PlanNode {
         if (subPlan == null) {
             throw new IllegalArgumentException("SubPlan không được null");
         }
+        if (subPlan.containsSubPlan(this)) {
+            throw new IllegalArgumentException("Thêm SubPlan sẽ tạo vòng lặp");
+        }
         if (!Objects.equals(planId, subPlan.getPlanId())
                 || (subPlan.getParentSubPlanId() != null
                 && !subPlan.getParentSubPlanId().equals(id))) {
             throw new IllegalArgumentException("SubPlan con khác Plan hoặc khác cha");
         }
+        for (SubPlan existing : subPlans) {
+            if (existing == subPlan || (subPlan.getId() != null && subPlan.getId().equals(existing.getId()))) {
+                throw new IllegalArgumentException("SubPlan đã có trong nhánh");
+            }
+        }
         subPlans.add(subPlan);
+    }
+
+    private boolean containsSubPlan(SubPlan candidate) {
+        if (this == candidate || (id != null && id.equals(candidate.getId()))) {
+            return true;
+        }
+        for (SubPlan child : subPlans) {
+            if (child.containsSubPlan(candidate)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean removeTask(Task task) {
