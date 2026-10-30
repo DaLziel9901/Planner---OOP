@@ -132,7 +132,7 @@ public class SubPlan implements PlanNode {
                 || (task.getSubPlanId() != null && !task.getSubPlanId().equals(id))) {
             throw new IllegalArgumentException("Task không thuộc SubPlan này");
         }
-        // Trùng tên hợp lệ; cùng đối tượng hoặc cùng ID thì không thêm lại.
+        // Xử lý ngoại lệ trùng ID task
         for (Task existing : tasks) {
             if (existing == task || (task.getId() != null && task.getId().equals(existing.getId()))) {
                 throw new IllegalArgumentException("Task đã có trong SubPlan");

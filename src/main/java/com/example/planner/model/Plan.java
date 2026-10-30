@@ -94,7 +94,7 @@ public class Plan implements PlanNode {
                 || (task.getPlanId() != null && !task.getPlanId().equals(id))) {
             throw new IllegalArgumentException("Task không thuộc trực tiếp Plan này");
         }
-        // Cho phép trùng title; chỉ chặn đếm lại cùng một đối tượng/bản ghi.
+        // Xử lý ngoại lệ trùng ID task
         for (Task existing : tasks) {
             if (existing == task || (task.getId() != null && task.getId().equals(existing.getId()))) {
                 throw new IllegalArgumentException("Task đã có trong Plan");
@@ -111,6 +111,7 @@ public class Plan implements PlanNode {
                 || (subPlan.getPlanId() != null && !subPlan.getPlanId().equals(id))) {
             throw new IllegalArgumentException("SubPlan không thuộc tầng 1 của Plan này");
         }
+        // Xử lý ngoại lệ trùng ID subPlan
         for (SubPlan existing : subPlans) {
             if (existing == subPlan || (subPlan.getId() != null && subPlan.getId().equals(existing.getId()))) {
                 throw new IllegalArgumentException("SubPlan đã có trong Plan");
