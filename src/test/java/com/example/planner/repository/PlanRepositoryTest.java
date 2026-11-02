@@ -17,8 +17,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-// SQL thật. Chỉ chạy khi chủ động chọn database riêng có tên kết thúc bằng _test.
-// Không tải Spring context, không lấy DB_URL/DB_PASSWORD của ứng dụng.
 @EnabledIfEnvironmentVariable(named = "TEST_DB_URL", matches = ".+")
 class PlanRepositoryTest {
     private Connection connection;
