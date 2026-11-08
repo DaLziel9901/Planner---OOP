@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Form kế hoạch</title></head>
+<body><main>
+    <h1 th:text="${editing ? 'Sửa Plan' : 'Thêm Plan'}"></h1>
+    <ul role="alert" th:if="${!errors.isEmpty()}">
+        <li th:each="error : ${errors}" th:text="${error.value}"></li>
+    </ul>
+    <form method="post" th:action="${formAction}">
+        <p><label for="title">Tên kế hoạch *</label><br>
+            <input id="title" name="title" th:value="${form['title']}" required maxlength="255"
+                   aria-describedby="title-help title-error">
+            <small id="title-help">Tối đa 255 ký tự. Các kế hoạch được phép trùng tên.</small>
+            <span id="title-error" th:text="${errors['title']}"></span></p>
+        <p><label for="goal">Mục tiêu</label><br>
+            <textarea id="goal" name="goal" rows="4" th:text="${form['goal']}"></textarea></p>
+        <p><label for="startDate">Ngày bắt đầu (yyyy-MM-dd)</label><br>
+            <input id="startDate" name="startDate" th:value="${form['startDate']}"
+                   placeholder="2026-11-08" aria-describedby="start-error">
+            <span id="start-error" th:text="${errors['startDate']}"></span></p>
+        <p><label for="endDate">Ngày kết thúc (yyyy-MM-dd)</label><br>
+            <input id="endDate" name="endDate" th:value="${form['endDate']}"
+                   placeholder="2027-05-08" aria-describedby="end-error">
+            <span id="end-error" th:text="${errors['endDate']}"></span></p>
+        <p>Mục tiêu và ngày có thể để trống. Nếu nhập đủ hai ngày, ngày bắt đầu không được sau ngày kết thúc.</p>
+        <button type="submit">Lưu kế hoạch</button>
+        <a th:href="@{/plans}">Về danh sách</a>
+    </form>
+</main></body></html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Chi tiết SubPlan</title></head>
+<body><main>
+    <p th:if="${message}" th:text="${message}" role="status"></p>
+    <h1 th:text="${subPlan.title}"></h1>
+    <p>Plan: <a th:href="@{/plans/{id}(id=${plan.id})}" th:text="${plan.title}"></a></p>
+    <p th:if="${subPlan.parentSubPlanId != null}">SubPlan cha:
+        <a th:href="@{/subplans/{id}(id=${subPlan.parentSubPlanId})}" th:text="${'#' + subPlan.parentSubPlanId}"></a></p>
+    <p th:text="${subPlan.description}" style="white-space: pre-wrap"></p>
+    <dl><dt>Ngày bắt đầu</dt><dd th:text="${subPlan.startDate}"></dd>
+        <dt>Ngày kết thúc</dt><dd th:text="${subPlan.endDate}"></dd>
+        <dt>Thứ tự</dt><dd th:text="${subPlan.orderIndex}"></dd>
+        <dt>Thời điểm tạo</dt><dd th:text="${subPlan.createdAt}"></dd></dl>
+    <ul th:if="${!#lists.isEmpty(warnings)}" role="status"><li th:each="warning : ${warnings}" th:text="${warning}"></li></ul>
+    <p th:unless="${progressAvailable}">Chưa nạp Task/SubTask để tính tiến độ.</p>
+    <h2>SubPlan con trực tiếp</h2>
+    <p th:if="${#lists.isEmpty(children)}">Chưa có SubPlan con trực tiếp.</p>
+    <ul><li th:each="child : ${children}"><a th:href="@{/subplans/{id}(id=${child.id})}" th:text="${child.title}"></a></li></ul>
+    <p><a th:href="@{/subplans/new(planId=${plan.id},parentSubPlanId=${subPlan.id})}">Thêm SubPlan con</a>
+        | <a th:href="@{/subplans/{id}/edit(id=${subPlan.id})}">Sửa</a>
+        | <a th:href="@{/subplans(planId=${plan.id})}">Về danh sách</a></p>
+    <form method="post" th:action="@{/subplans/{id}/delete(id=${subPlan.id})}"
+          onsubmit="return confirm('Xóa SubPlan này và toàn bộ SubPlan, Task, SubTask bên dưới?');">
+        <button type="submit">Xóa toàn bộ nhánh này</button>
+    </form>
+</main></body></html>

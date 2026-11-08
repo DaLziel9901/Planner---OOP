@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Form SubPlan</title></head>
+<body><main>
+    <h1 th:text="${editing ? 'Sửa SubPlan' : 'Thêm SubPlan'}"></h1>
+    <p>Thuộc Plan: <span th:text="${plan.title}"></span></p>
+    <ul role="alert" th:if="${!errors.isEmpty()}">
+        <li th:each="error : ${errors}" th:text="${error.value}"></li>
+    </ul>
+    <form method="post" th:action="${formAction}">
+        <input type="hidden" name="planId" th:value="${plan.id}">
+        <p><label for="title">Tên *</label><br>
+            <input id="title" name="title" th:value="${form['title']}" required maxlength="255"></p>
+        <p><label for="description">Mô tả</label><br>
+            <textarea id="description" name="description" rows="4" th:text="${form['description']}"></textarea></p>
+        <p><label for="parentSubPlanId">SubPlan cha</label><br>
+            <select id="parentSubPlanId" name="parentSubPlanId">
+                <option value="">Trực tiếp dưới Plan (tầng 1)</option>
+                <option th:if="${!parentSelectionKnown}" th:value="${form['parentSubPlanId']}"
+                        selected th:text="${'Giá trị đã gửi: ' + form['parentSubPlanId']}"></option>
+                <option th:each="parent : ${parents}" th:value="${parent.id}"
+                        th:selected="${form['parentSubPlanId'] == parent.id.toString()}"
+                        th:text="${'#' + parent.id + ' — ' + parent.title}"></option>
+            </select></p>
+        <p>Tối đa 5 tầng, không chọn chính mình hoặc nhánh con làm cha. Đổi cha chỉ áp dụng trong cùng Plan.</p>
+        <p><label for="startDate">Ngày bắt đầu (yyyy-MM-dd)</label><br>
+            <input id="startDate" name="startDate" placeholder="2026-11-02" th:value="${form['startDate']}"></p>
+        <p><label for="endDate">Ngày kết thúc (yyyy-MM-dd)</label><br>
+            <input id="endDate" name="endDate" placeholder="2026-12-02" th:value="${form['endDate']}"></p>
+        <p>Có thể để trống ngày. Ngày ngoài khoảng cha chỉ được cảnh báo sau khi lưu.</p>
+        <p><label for="orderIndex">Thứ tự (từ 0)</label><br>
+            <input id="orderIndex" name="orderIndex" th:value="${form['orderIndex']}" inputmode="numeric" required></p>
+        <button type="submit">Lưu</button>
+        <a th:href="@{/subplans(planId=${plan.id})}">Hủy</a>
+    </form>
+</main></body></html>

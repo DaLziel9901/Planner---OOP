@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Danh sách SubPlan</title></head>
+<body>
+<main>
+    <h1>Các giai đoạn (SubPlan)</h1>
+    <p><a th:href="@{/plans}">Danh sách Plan</a> | <a th:href="@{/plans/new}">Thêm Plan</a></p>
+    <p th:if="${message}" th:text="${message}" role="status"></p>
+    <form method="get" th:action="@{/subplans}">
+        <label for="planId">Chọn kế hoạch</label>
+        <select id="planId" name="planId" required>
+            <option value="">Chọn Plan</option>
+            <option th:each="item : ${plans}" th:value="${item.id}"
+                    th:selected="${plan != null and item.id == plan.id}"
+                    th:text="${'#' + item.id + ' — ' + item.title}"></option>
+        </select>
+        <button type="submit">Xem</button>
+    </form>
+    <p th:if="${#lists.isEmpty(plans)}">Chưa có Plan. Hãy tạo Plan trước khi thêm SubPlan.</p>
+    <section th:if="${plan != null}">
+        <h2 th:text="${plan.title}"></h2>
+        <p><a th:href="@{/plans/{id}(id=${plan.id})}">Chi tiết Plan</a></p>
+        <a th:href="@{/subplans/new(planId=${plan.id})}">Thêm SubPlan</a>
+        <p th:if="${#lists.isEmpty(subPlans)}">Plan này chưa có SubPlan.</p>
+        <table th:unless="${#lists.isEmpty(subPlans)}">
+            <thead><tr><th>ID</th><th>Tên</th><th>Cha</th><th>Ngày bắt đầu</th><th>Ngày kết thúc</th><th>Thứ tự</th><th>Thao tác</th></tr></thead>
+            <tbody><tr th:each="item : ${subPlans}">
+                <td th:text="${item.id}"></td>
+                <td><a th:href="@{/subplans/{id}(id=${item.id})}" th:text="${item.title}"></a></td>
+                <td th:text="${item.parentSubPlanId == null ? 'Trực tiếp dưới Plan' : '#' + item.parentSubPlanId}"></td>
+                <td th:text="${item.startDate}"></td><td th:text="${item.endDate}"></td><td th:text="${item.orderIndex}"></td>
+                <td><a th:href="@{/subplans/{id}/edit(id=${item.id})}">Sửa</a></td>
+            </tr></tbody>
+        </table>
+    </section>
+</main>
+</body></html>

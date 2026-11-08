@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Chi tiết kế hoạch</title></head>
+<body><main>
+    <p th:if="${message}" th:text="${message}" role="status"></p>
+    <h1 th:text="${plan.title}"></h1>
+    <dl>
+        <dt>ID</dt><dd th:text="${plan.id}"></dd>
+        <dt>Mục tiêu</dt><dd th:text="${plan.goal}" style="white-space: pre-wrap"></dd>
+        <dt>Ngày bắt đầu</dt><dd th:text="${plan.startDate}"></dd>
+        <dt>Ngày kết thúc</dt><dd th:text="${plan.endDate}"></dd>
+        <dt>Thời điểm tạo</dt><dd th:text="${plan.createdAt}"></dd>
+    </dl>
+    <p th:unless="${progressAvailable}">Chưa nạp toàn bộ SubPlan/Task/SubTask để tính tiến độ.</p>
+    <p><a th:href="@{/plans/{id}/edit(id=${plan.id})}">Sửa Plan</a>
+        | <a th:href="@{/subplans(planId=${plan.id})}">Xem các SubPlan</a>
+        | <a th:href="@{/subplans/new(planId=${plan.id})}">Thêm SubPlan</a>
+        | <a th:href="@{/plans}">Về danh sách</a></p>
+    <p>Xóa Plan sẽ xóa toàn bộ SubPlan, Task và SubTask bên dưới, bao gồm Task trực tiếp dưới Plan.</p>
+    <form method="post" th:action="@{/plans/{id}/delete(id=${plan.id})}"
+          onsubmit="return confirm('Xóa Plan này và toàn bộ SubPlan, Task, SubTask bên dưới?');">
+        <button type="submit">Xóa Plan và toàn bộ công việc</button>
+    </form>
+</main></body></html>
