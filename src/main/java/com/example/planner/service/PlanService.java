@@ -2,8 +2,10 @@ package com.example.planner.service;
 
 import com.example.planner.model.Plan;
 import com.example.planner.repository.PlanRepository;
+import com.example.planner.repository.SubPlanRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
@@ -14,8 +16,11 @@ public class PlanService {
 
     private final PlanRepository planRepository;
 
-    public PlanService(PlanRepository planRepository) {
+    private final SubPlanRepository subPlanRepository;
+
+    public PlanService(PlanRepository planRepository, SubPlanRepository subPlanRepository) {
         this.planRepository = planRepository;
+        this.subPlanRepository = subPlanRepository;
     }
 
     // Chỉ đọc thuộc tính Plan, chưa nạp cây và tiến độ.
@@ -66,8 +71,12 @@ public class PlanService {
         }
     }
 
+    @Transactional
     public void delete(long id) {
         validateId(id);
+        if (!subPlanRepository.lockPlan(id)) {
+            throw notFound(id);
+        }
 
         boolean deleted = planRepository.deleteById(id);
 
