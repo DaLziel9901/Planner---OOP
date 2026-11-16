@@ -84,6 +84,8 @@ public class PlanController {
             Model model
     ) {
         model.addAttribute("plan", planService.getById(id));
+        model.addAttribute("taskListUrl", "/tasks?planId=" + id);
+        model.addAttribute("newTaskUrl", "/tasks/new?planId=" + id);
 
         // Chưa nạp Task/SubPlan/SubTask, không hiển thị tiến độ.
         model.addAttribute("progressAvailable", false);

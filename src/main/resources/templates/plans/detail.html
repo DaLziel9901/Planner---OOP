@@ -15,6 +15,8 @@
     <p><a th:href="@{/plans/{id}/edit(id=${plan.id})}">Sửa Plan</a>
         | <a th:href="@{/subplans(planId=${plan.id})}">Xem các SubPlan</a>
         | <a th:href="@{/subplans/new(planId=${plan.id})}">Thêm SubPlan</a>
+        | <a th:href="${taskListUrl}">Task trực tiếp</a>
+        | <a th:href="${newTaskUrl}">Thêm Task trực tiếp</a>
         | <a th:href="@{/plans}">Về danh sách</a></p>
     <p>Xóa Plan sẽ xóa toàn bộ SubPlan, Task và SubTask bên dưới, bao gồm Task trực tiếp dưới Plan.</p>
     <form method="post" th:action="@{/plans/{id}/delete(id=${plan.id})}"

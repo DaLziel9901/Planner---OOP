@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Task độc lập</title></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title th:text="${locationLabel}">Danh sách Task</title></head>
 <body><main>
     <p th:if="${message}" th:text="${message}" role="status"></p>
-    <h1>Task độc lập</h1>
-    <p><a th:href="@{/tasks/new}">Thêm Task</a> | <a th:href="@{/plans}">Danh sách Plan</a></p>
-    <p th:if="${#lists.isEmpty(tasks)}">Chưa có Task độc lập.</p>
+    <h1 th:text="${locationLabel}">Danh sách Task</h1>
+    <p><a th:href="${newTaskUrl}">Thêm Task</a> | <a th:href="@{/tasks}">Task độc lập</a> | <a th:href="@{/plans}">Danh sách Plan</a></p>
+    <p th:if="${parentUrl != null}"><a th:href="${parentUrl}">Về cha</a></p>
+    <p th:if="${#lists.isEmpty(tasks)}" th:text="${parentUrl == null ? 'Chưa có Task độc lập.' : 'Chưa có Task trực tiếp ở đây.'}"></p>
     <p th:unless="${progressAvailable}">Chưa có tiến độ khả dụng.</p>
     <table th:unless="${#lists.isEmpty(tasks)}">
         <thead><tr><th>Tên Task</th><th>Ngày bắt đầu</th><th>Ngày kết thúc</th><th>Thứ tự</th><th>Thao tác</th></tr></thead>

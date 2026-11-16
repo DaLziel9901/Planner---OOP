@@ -4,14 +4,15 @@
 <body><main>
     <p th:if="${message}" th:text="${message}" role="status"></p>
     <h1 th:text="${task.title}"></h1>
-    <p>Task độc lập</p>
+    <p th:text="${locationLabel}"></p>
+    <p th:if="${parentUrl != null}"><a th:href="${parentUrl}">Về cha</a></p>
     <p th:text="${task.description}" style="white-space: pre-wrap"></p>
     <dl><dt>Ngày bắt đầu</dt><dd th:text="${task.startDate}"></dd>
         <dt>Ngày kết thúc</dt><dd th:text="${task.endDate}"></dd>
         <dt>Thứ tự</dt><dd th:text="${task.orderIndex}"></dd>
         <dt>Thời điểm tạo</dt><dd th:text="${task.createdAt}"></dd></dl>
     <p th:unless="${progressAvailable}">Chưa có tiến độ khả dụng.</p>
-    <p><a th:href="@{/tasks/{id}/edit(id=${task.id})}">Sửa Task</a> | <a th:href="@{/tasks}">Về danh sách</a></p>
+    <p><a th:href="@{/tasks/{id}/edit(id=${task.id})}">Sửa Task</a> | <a th:href="${taskListUrl}">Về danh sách</a></p>
     <form method="post" th:action="@{/tasks/{id}/delete(id=${task.id})}"
           onsubmit="return confirm('Xóa Task này và toàn bộ SubTask bên dưới?');">
         <button type="submit">Xóa Task và toàn bộ SubTask</button>

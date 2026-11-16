@@ -2,9 +2,25 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Form Task</title></head>
 <body><main>
-    <h1 th:text="${editing ? 'Sửa Task' : 'Thêm Task độc lập'}"></h1>
+    <h1 th:text="${editing ? 'Sửa Task' : 'Thêm Task'}"></h1>
     <ul role="alert" th:if="${!errors.isEmpty()}"><li th:each="error : ${errors}" th:text="${error.value}"></li></ul>
     <form method="post" th:action="${formAction}">
+        <fieldset th:unless="${editing}"><legend>Nơi chứa Task</legend>
+            <p>Chọn một Plan hoặc một SubPlan. Để trống cả hai để tạo Task độc lập.</p>
+            <p><label for="planId">Plan trực tiếp</label>
+                <select id="planId" name="planId">
+                    <option value="">Không chọn Plan</option>
+                    <option th:unless="${planSelectionKnown}" th:value="${locationForm['planId']}" selected th:text="${'Giá trị đã gửi: ' + locationForm['planId']}"></option>
+                    <option th:each="plan : ${plans}" th:value="${plan.id}" th:selected="${plan.id.toString() == locationForm['planId']}" th:text="${'#' + plan.id + ' — ' + plan.title}"></option>
+                </select></p>
+            <p><label for="subPlanId">SubPlan trực tiếp</label>
+                <select id="subPlanId" name="subPlanId">
+                    <option value="">Không chọn SubPlan</option>
+                    <option th:unless="${subPlanSelectionKnown}" th:value="${locationForm['subPlanId']}" selected th:text="${'Giá trị đã gửi: ' + locationForm['subPlanId']}"></option>
+                    <option th:each="sub : ${subPlans}" th:value="${sub.id}" th:selected="${sub.id.toString() == locationForm['subPlanId']}" th:text="${'#' + sub.id + ' — ' + sub.title + ' (Plan #' + sub.planId + ')'}"></option>
+                </select></p>
+        </fieldset>
+        <p th:if="${editing}" th:text="${locationLabel}"></p>
         <p><label for="title">Tên Task *</label><br>
             <input id="title" name="title" th:value="${form['title']}" required aria-describedby="title-help title-error">
             <small id="title-help">Từ 1 đến 255 ký tự, không chỉ chứa khoảng trắng. Task được phép trùng tên.</small>
@@ -21,6 +37,6 @@
             <input id="orderIndex" name="orderIndex" th:value="${form['orderIndex']}" inputmode="numeric" aria-describedby="order-error">
             <span id="order-error" th:text="${errors['orderIndex']}"></span></p>
         <p>Mô tả và ngày có thể để trống. Nếu nhập cả hai ngày, ngày bắt đầu không được sau ngày kết thúc. Thứ tự là số nguyên không âm, để trống dùng 0.</p>
-        <button type="submit">Lưu Task</button> <a th:href="@{/tasks}">Về danh sách</a>
+        <button type="submit">Lưu Task</button> <a th:href="${taskListUrl != null ? taskListUrl : '/tasks'}">Về danh sách</a>
     </form>
 </main></body></html>

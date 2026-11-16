@@ -56,6 +56,8 @@ public class SubPlanController {
     public String detail(@PathVariable("id") long id, Model model) {
         SubPlan subPlan = service.getById(id);
         model.addAttribute("subPlan", subPlan);
+        model.addAttribute("taskListUrl", "/tasks?subPlanId=" + id);
+        model.addAttribute("newTaskUrl", "/tasks/new?subPlanId=" + id);
         model.addAttribute("plan", service.getPlan(subPlan.getPlanId()));
         model.addAttribute("children", service.getDirectChildren(subPlan));
         model.addAttribute("warnings", service.getDateWarnings(subPlan));

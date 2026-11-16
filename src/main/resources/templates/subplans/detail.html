@@ -19,6 +19,8 @@
     <ul><li th:each="child : ${children}"><a th:href="@{/subplans/{id}(id=${child.id})}" th:text="${child.title}"></a></li></ul>
     <p><a th:href="@{/subplans/new(planId=${plan.id},parentSubPlanId=${subPlan.id})}">Thêm SubPlan con</a>
         | <a th:href="@{/subplans/{id}/edit(id=${subPlan.id})}">Sửa</a>
+        | <a th:href="${taskListUrl}">Task trực tiếp</a>
+        | <a th:href="${newTaskUrl}">Thêm Task trực tiếp</a>
         | <a th:href="@{/subplans(planId=${plan.id})}">Về danh sách</a></p>
     <form method="post" th:action="@{/subplans/{id}/delete(id=${subPlan.id})}"
           onsubmit="return confirm('Xóa SubPlan này và toàn bộ SubPlan, Task, SubTask bên dưới?');">
