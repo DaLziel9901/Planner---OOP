@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Task độc lập</title></head>
+<body><main>
+    <p th:if="${message}" th:text="${message}" role="status"></p>
+    <h1>Task độc lập</h1>
+    <p><a th:href="@{/tasks/new}">Thêm Task</a> | <a th:href="@{/plans}">Danh sách Plan</a></p>
+    <p th:if="${#lists.isEmpty(tasks)}">Chưa có Task độc lập.</p>
+    <p th:unless="${progressAvailable}">Chưa có tiến độ khả dụng.</p>
+    <table th:unless="${#lists.isEmpty(tasks)}">
+        <thead><tr><th>Tên Task</th><th>Ngày bắt đầu</th><th>Ngày kết thúc</th><th>Thứ tự</th><th>Thao tác</th></tr></thead>
+        <tbody><tr th:each="task : ${tasks}">
+            <td><a th:href="@{/tasks/{id}(id=${task.id})}" th:text="${task.title}"></a></td>
+            <td th:text="${task.startDate}"></td><td th:text="${task.endDate}"></td><td th:text="${task.orderIndex}"></td>
+            <td><a th:href="@{/tasks/{id}/edit(id=${task.id})}">Sửa</a></td>
+        </tr></tbody>
+    </table>
+</main></body></html>
