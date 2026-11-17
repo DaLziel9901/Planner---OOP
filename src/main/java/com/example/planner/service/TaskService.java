@@ -75,6 +75,10 @@ public class TaskService {
         return current;
     }
 
+    // SubTaskService gọi trong giao dịch ghi để tái dùng đúng thứ tự khóa Plan → Task.
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public Task lockForWrite(long id) { return lockAndRead(id); }
+
     private void lockLocation(Long planId, Long subPlanId) {
         if (planId == null && subPlanId == null) return;
         long ownerPlan = planId != null ? planId : getSubPlan(subPlanId).getPlanId();

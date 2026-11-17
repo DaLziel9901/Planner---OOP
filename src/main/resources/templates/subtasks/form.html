@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Form SubTask</title></head>
+<body><main>
+    <h1 th:text="${editing ? 'Sửa SubTask' : 'Thêm SubTask'}"></h1>
+    <ul role="alert" th:if="${!errors.isEmpty()}"><li th:each="error : ${errors}" th:text="${error.value}"></li></ul>
+    <p th:if="${task != null}">Task: <a th:href="@{/tasks/{id}(id=${task.id})}" th:text="${task.title}"></a></p>
+    <form method="post" th:action="${formAction}">
+        <p th:unless="${editing}"><label for="taskId">ID Task cha *</label><br>
+            <input id="taskId" name="taskId" th:value="${taskIdInput}" inputmode="numeric" required>
+            <small>SubTask phải thuộc một Task. Có thể mở form từ trang Task cha.</small></p>
+        <p><label for="title">Tên SubTask *</label><br>
+            <input id="title" name="title" th:value="${form['title']}" required aria-describedby="title-help">
+            <small id="title-help">Từ 1 đến 255 ký tự, không chỉ chứa khoảng trắng. Được phép trùng tên.</small></p>
+        <p><label for="description">Mô tả</label><br>
+            <textarea id="description" name="description" rows="4" th:text="${form['description']}"></textarea></p>
+        <p><label for="scheduledDate">Ngày dự kiến (yyyy-MM-dd)</label><br>
+            <input id="scheduledDate" name="scheduledDate" th:value="${form['scheduledDate']}" placeholder="2026-11-16"></p>
+        <p><label for="orderIndex">Thứ tự</label><br>
+            <input id="orderIndex" name="orderIndex" th:value="${form['orderIndex']}" inputmode="numeric"></p>
+        <p>Mô tả và ngày dự kiến có thể để trống. Thứ tự là số nguyên không âm, để trống dùng 0.</p>
+        <button type="submit">Lưu SubTask</button>
+    </form>
+    <p th:if="${task != null}"><a th:href="@{/tasks/{id}(id=${task.id})}">Về Task cha</a></p>
+    <p><a th:href="@{/tasks}">Danh sách Task độc lập</a></p>
+</main></body></html>

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Chi tiết SubTask</title></head>
+<body><main>
+    <p th:if="${message}" th:text="${message}" role="status"></p>
+    <h1 th:text="${subTask.title}"></h1>
+    <p>Task: <a th:href="@{/tasks/{id}(id=${task.id})}" th:text="${task.title}"></a></p>
+    <p th:text="${subTask.description}" style="white-space: pre-wrap"></p>
+    <dl><dt>Ngày dự kiến</dt><dd th:text="${subTask.scheduledDate}"></dd>
+        <dt>Thứ tự</dt><dd th:text="${subTask.orderIndex}"></dd>
+        <dt>Trạng thái</dt><dd th:text="${subTask.done ? 'Đã hoàn thành' : 'Chưa hoàn thành'}"></dd>
+        <dt>Thời điểm hoàn thành</dt><dd th:text="${subTask.completedAt}"></dd>
+        <dt>Thời điểm tạo</dt><dd th:text="${subTask.createdAt}"></dd></dl>
+    <p><a th:href="@{/subtasks/{id}/edit(id=${subTask.id})}">Sửa SubTask</a>
+        | <a th:href="@{/subtasks(taskId=${task.id})}">Các SubTask cùng Task</a></p>
+    <form method="post" th:action="@{/subtasks/{id}/delete(id=${subTask.id})}"
+          onsubmit="return confirm('Xóa SubTask này?');">
+        <button type="submit">Xóa SubTask này</button>
+    </form>
+</main></body></html>

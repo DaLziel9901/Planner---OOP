@@ -3,6 +3,7 @@ package com.example.planner.controller;
 import com.example.planner.service.TaskService;
 import com.example.planner.service.PlanService;
 import com.example.planner.service.SubPlanService;
+import com.example.planner.service.SubTaskService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -24,8 +25,9 @@ public class TaskController {
     private final TaskService service;
     private final PlanService plans;
     private final SubPlanService subPlans;
-    public TaskController(TaskService service, PlanService plans, SubPlanService subPlans) {
-        this.service = service; this.plans = plans; this.subPlans = subPlans;
+    private final SubTaskService subTasks;
+    public TaskController(TaskService service, PlanService plans, SubPlanService subPlans, SubTaskService subTasks) {
+        this.service = service; this.plans = plans; this.subPlans = subPlans; this.subTasks = subTasks;
     }
     @GetMapping
     public String list(@RequestParam Map<String,String> params, Model model) {
@@ -49,6 +51,7 @@ public class TaskController {
     public String detail(@PathVariable("id") long id, Model model) {
         Task task = service.getById(id);
         model.addAttribute("task", task);
+        model.addAttribute("subTasks", subTasks.findByTaskId(id));
         locationContext(new Location(task.getPlanId(), task.getSubPlanId()), model);
         model.addAttribute("progressAvailable", false);
         return "tasks/detail";

@@ -12,6 +12,18 @@
         <dt>Thứ tự</dt><dd th:text="${task.orderIndex}"></dd>
         <dt>Thời điểm tạo</dt><dd th:text="${task.createdAt}"></dd></dl>
     <p th:unless="${progressAvailable}">Chưa có tiến độ khả dụng.</p>
+    <h2>SubTask</h2>
+    <p><a th:href="@{/subtasks/new(taskId=${task.id})}">Thêm SubTask</a>
+        | <a th:href="@{/subtasks(taskId=${task.id})}">Xem các SubTask</a></p>
+    <p th:if="${#lists.isEmpty(subTasks)}">Chưa có SubTask.</p>
+    <table th:unless="${#lists.isEmpty(subTasks)}">
+        <thead><tr><th>Tên</th><th>Ngày dự kiến</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+        <tbody><tr th:each="leaf : ${subTasks}">
+            <td><a th:href="@{/subtasks/{id}(id=${leaf.id})}" th:text="${leaf.title}"></a></td>
+            <td th:text="${leaf.scheduledDate}"></td><td th:text="${leaf.done ? 'Đã hoàn thành' : 'Chưa hoàn thành'}"></td>
+            <td><a th:href="@{/subtasks/{id}/edit(id=${leaf.id})}">Sửa</a></td>
+        </tr></tbody>
+    </table>
     <p><a th:href="@{/tasks/{id}/edit(id=${task.id})}">Sửa Task</a> | <a th:href="${taskListUrl}">Về danh sách</a></p>
     <form method="post" th:action="@{/tasks/{id}/delete(id=${task.id})}"
           onsubmit="return confirm('Xóa Task này và toàn bộ SubTask bên dưới?');">
