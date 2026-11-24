@@ -9,6 +9,7 @@ import com.example.planner.repository.SubPlanRepository;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.HashSet;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -43,6 +44,22 @@ public class TaskService {
     public Task getById(long id) {
         validateId(id);
         return repository.findById(id).orElseThrow(() -> notFound(id));
+    }
+
+    public boolean isAncestor(long taskId, Long planId, Long subPlanId) {
+        Task task = repository.findById(taskId).orElse(null);
+        if (task == null) return false;
+        if (task.getPlanId() != null) return task.getPlanId().equals(planId);
+
+        var visited = new HashSet<Long>();
+        Long cursor = task.getSubPlanId();
+        while (cursor != null && visited.add(cursor)) {
+            SubPlan ancestor = subPlans.findById(cursor).orElse(null);
+            if (ancestor == null) return false;
+            if (cursor.equals(subPlanId) || Objects.equals(ancestor.getPlanId(), planId)) return true;
+            cursor = ancestor.getParentSubPlanId();
+        }
+        return false;
     }
 
     @Transactional

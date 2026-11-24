@@ -3,6 +3,9 @@ package com.example.planner.controller;
 import com.example.planner.model.SubPlan;
 import com.example.planner.service.PlanService;
 import com.example.planner.service.SubPlanService;
+import com.example.planner.service.PlanTreeService;
+import com.example.planner.service.ProgressPresentation;
+import com.example.planner.model.Plan;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -20,17 +23,25 @@ public class SubPlanController {
     private final SubPlanService service;
     private final PlanService plans;
 
-    public SubPlanController(SubPlanService service, PlanService plans) {
+    private final PlanTreeService trees;
+    public SubPlanController(SubPlanService service, PlanService plans,PlanTreeService trees) {
         this.service = service;
         this.plans = plans;
+        this.trees=trees;
     }
 
     @GetMapping
     public String list(@RequestParam(name = "planId", required = false) Long planId, Model model) {
-        model.addAttribute("plans", plans.findAll());
+        model.addAttribute("plans",ProgressReadSupport.primary(plans::findAll));
         if (planId != null) {
-            model.addAttribute("plan", service.getPlan(planId));
-            model.addAttribute("subPlans", service.findByPlanId(planId));
+            Plan main=ProgressReadSupport.primary(()->service.getPlan(planId));
+            var rows=ProgressReadSupport.primary(()->service.findByPlanId(planId));
+            var snapshot=ProgressReadSupport.tree(()->trees.loadPlan(planId));
+            var displayed=snapshot.map(PlanTreeService.PlanSnapshot::subPlans).orElse(rows);
+            model.addAttribute("plan",snapshot.map(PlanTreeService.PlanSnapshot::plan).orElse(main));
+            model.addAttribute("subPlans",displayed);
+            model.addAttribute("progressById",ProgressReadSupport.progress(displayed,SubPlan::getId,snapshot.isPresent()));
+            model.addAttribute("progressAvailable",snapshot.isPresent());
         }
         return "subplans/list";
     }
@@ -54,14 +65,19 @@ public class SubPlanController {
 
     @GetMapping("/{id}")
     public String detail(@PathVariable("id") long id, Model model) {
-        SubPlan subPlan = service.getById(id);
-        model.addAttribute("subPlan", subPlan);
+        SubPlan main=ProgressReadSupport.primary(()->service.getById(id));
+        Plan root=ProgressReadSupport.primary(()->service.getPlan(main.getPlanId()));
+        var warnings=ProgressReadSupport.primary(()->service.getDateWarnings(main));
+        var snapshot=ProgressReadSupport.tree(()->trees.loadSubPlan(id));
+        SubPlan subPlan=snapshot.map(PlanTreeService.SubPlanSnapshot::subPlan).orElse(main);
+        model.addAttribute("subPlan",subPlan);
         model.addAttribute("taskListUrl", "/tasks?subPlanId=" + id);
         model.addAttribute("newTaskUrl", "/tasks/new?subPlanId=" + id);
-        model.addAttribute("plan", service.getPlan(subPlan.getPlanId()));
-        model.addAttribute("children", service.getDirectChildren(subPlan));
-        model.addAttribute("warnings", service.getDateWarnings(subPlan));
-        model.addAttribute("progressAvailable", false);
+        model.addAttribute("plan",snapshot.map(PlanTreeService.SubPlanSnapshot::plan).orElse(root));
+        model.addAttribute("children",snapshot.isPresent()?subPlan.getSubPlans():List.of());
+        model.addAttribute("warnings",snapshot.isPresent()?service.getDateWarnings(subPlan,snapshot.get().plan(),snapshot.get().allSubPlans()):warnings);
+        model.addAttribute("progress",snapshot.isPresent()?ProgressPresentation.from(subPlan):ProgressPresentation.unavailable());
+        model.addAttribute("progressAvailable",snapshot.isPresent()); model.addAttribute("treeAvailable",snapshot.isPresent());
         return "subplans/detail";
     }
 

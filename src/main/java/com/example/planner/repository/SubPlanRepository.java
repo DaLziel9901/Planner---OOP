@@ -14,6 +14,12 @@ import java.util.Optional;
 
 @Repository
 public class SubPlanRepository {
+    public List<SubPlan> findByPlanIds(java.util.Collection<Long> ids) {
+        if (ids.isEmpty()) return List.of();
+        return new org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate(jdbc).query(
+                "SELECT * FROM sub_plan WHERE plan_id IN (:ids) ORDER BY order_index, id",
+                java.util.Map.of("ids", ids), this::mapRow);
+    }
     private final JdbcTemplate jdbc;
 
     public SubPlanRepository(JdbcTemplate jdbc) {

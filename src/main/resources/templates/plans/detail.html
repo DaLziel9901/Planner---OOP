@@ -11,7 +11,7 @@
         <dt>Ngày kết thúc</dt><dd th:text="${plan.endDate}"></dd>
         <dt>Thời điểm tạo</dt><dd th:text="${plan.createdAt}"></dd>
     </dl>
-    <p th:unless="${progressAvailable}">Chưa nạp toàn bộ SubPlan/Task/SubTask để tính tiến độ.</p>
+    <p th:text="${progress.label}"></p>
     <p><a th:href="@{/plans/{id}/edit(id=${plan.id})}">Sửa Plan</a>
         | <a th:href="@{/subplans(planId=${plan.id})}">Xem các SubPlan</a>
         | <a th:href="@{/subplans/new(planId=${plan.id})}">Thêm SubPlan</a>

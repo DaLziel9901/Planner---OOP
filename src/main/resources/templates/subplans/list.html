@@ -23,12 +23,13 @@
         <a th:href="@{/subplans/new(planId=${plan.id})}">Thêm SubPlan</a>
         <p th:if="${#lists.isEmpty(subPlans)}">Plan này chưa có SubPlan.</p>
         <table th:unless="${#lists.isEmpty(subPlans)}">
-            <thead><tr><th>ID</th><th>Tên</th><th>Cha</th><th>Ngày bắt đầu</th><th>Ngày kết thúc</th><th>Thứ tự</th><th>Thao tác</th></tr></thead>
+            <thead><tr><th>ID</th><th>Tên</th><th>Cha</th><th>Ngày bắt đầu</th><th>Ngày kết thúc</th><th>Thứ tự</th><th>Tiến độ</th><th>Thao tác</th></tr></thead>
             <tbody><tr th:each="item : ${subPlans}">
                 <td th:text="${item.id}"></td>
                 <td><a th:href="@{/subplans/{id}(id=${item.id})}" th:text="${item.title}"></a></td>
                 <td th:text="${item.parentSubPlanId == null ? 'Trực tiếp dưới Plan' : '#' + item.parentSubPlanId}"></td>
                 <td th:text="${item.startDate}"></td><td th:text="${item.endDate}"></td><td th:text="${item.orderIndex}"></td>
+                <td th:text="${progressById[item.id].label}"></td>
                 <td><a th:href="@{/subplans/{id}/edit(id=${item.id})}">Sửa</a></td>
             </tr></tbody>
         </table>

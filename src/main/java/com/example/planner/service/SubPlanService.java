@@ -102,12 +102,24 @@ public class SubPlanService {
             parentStart = parent.getStartDate();
             parentEnd = parent.getEndDate();
         }
+        return dateWarnings(subPlan,parentStart,parentEnd,getDirectChildren(subPlan));
+    }
+
+    // Bản chỉ đọc bộ nhớ để cảnh báo và tiến độ dùng cùng metadata snapshot.
+    public List<String> getDateWarnings(SubPlan node,Plan plan,List<SubPlan> all) {
+        SubPlan parent=node.getParentSubPlanId()==null?null:all.stream()
+                .filter(s->s.getId().equals(node.getParentSubPlanId())).findFirst().orElseThrow();
+        return dateWarnings(node,parent==null?plan.getStartDate():parent.getStartDate(),parent==null?plan.getEndDate():parent.getEndDate(),
+                all.stream().filter(s->node.getId().equals(s.getParentSubPlanId())).toList());
+    }
+
+    private List<String> dateWarnings(SubPlan subPlan,LocalDate parentStart,LocalDate parentEnd,List<SubPlan> children) {
         List<String> warnings = new ArrayList<>();
         if (outside(subPlan.getStartDate(), parentStart, parentEnd)
                 || outside(subPlan.getEndDate(), parentStart, parentEnd)) {
             warnings.add("Ngày của SubPlan nằm ngoài khoảng ngày của cha. Dữ liệu vẫn được lưu.");
         }
-        for (SubPlan child : getDirectChildren(subPlan)) {
+        for (SubPlan child : children) {
             if (outside(child.getStartDate(), subPlan.getStartDate(), subPlan.getEndDate())
                     || outside(child.getEndDate(), subPlan.getStartDate(), subPlan.getEndDate())) {
                 warnings.add("SubPlan con #" + child.getId() + " nằm ngoài khoảng ngày của SubPlan này.");

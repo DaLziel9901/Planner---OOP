@@ -39,6 +39,14 @@ public class SubTaskService {
         if (!repository.update(updated)) throw notFound(id);
     }
     @Transactional
+    public long setCompletion(long id, boolean done) {
+        SubTask current = lockAndRead(id);
+        if (done) current.markDone();
+        else current.markUndone();
+        if (!repository.updateCompletion(current)) throw notFound(id);
+        return current.getTaskId();
+    }
+    @Transactional
     public long delete(long id) {
         SubTask current=lockAndRead(id);
         if (!repository.deleteById(id)) throw notFound(id);

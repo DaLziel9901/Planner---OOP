@@ -13,6 +13,13 @@ import java.time.OffsetDateTime;
 
 @Repository
 public class TaskRepository {
+    public List<Task> findByPlanIds(java.util.Collection<Long> ids) {
+        if (ids.isEmpty()) return List.of();
+        return new org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate(jdbc).query("""
+                SELECT t.* FROM task t LEFT JOIN sub_plan s ON t.sub_plan_id = s.id
+                WHERE t.plan_id IN (:ids) OR s.plan_id IN (:ids) ORDER BY t.order_index, t.id
+                """, java.util.Map.of("ids", ids), this::mapRow);
+    }
     private final JdbcTemplate jdbc;
     public TaskRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
     // Chỉ đọc thuộc tính Task, chưa nạp SubTask/tiến độ.

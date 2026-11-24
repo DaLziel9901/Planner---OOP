@@ -9,10 +9,11 @@
     <p th:if="${#lists.isEmpty(tasks)}" th:text="${parentUrl == null ? 'Chưa có Task độc lập.' : 'Chưa có Task trực tiếp ở đây.'}"></p>
     <p th:unless="${progressAvailable}">Chưa có tiến độ khả dụng.</p>
     <table th:unless="${#lists.isEmpty(tasks)}">
-        <thead><tr><th>Tên Task</th><th>Ngày bắt đầu</th><th>Ngày kết thúc</th><th>Thứ tự</th><th>Thao tác</th></tr></thead>
+        <thead><tr><th>Tên Task</th><th>Ngày bắt đầu</th><th>Ngày kết thúc</th><th>Thứ tự</th><th>Tiến độ</th><th>Thao tác</th></tr></thead>
         <tbody><tr th:each="task : ${tasks}">
             <td><a th:href="@{/tasks/{id}(id=${task.id})}" th:text="${task.title}"></a></td>
             <td th:text="${task.startDate}"></td><td th:text="${task.endDate}"></td><td th:text="${task.orderIndex}"></td>
+            <td th:text="${progressById[task.id].label}"></td>
             <td><a th:href="@{/tasks/{id}/edit(id=${task.id})}">Sửa</a></td>
         </tr></tbody>
     </table>

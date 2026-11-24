@@ -13,6 +13,12 @@ import java.time.OffsetDateTime;
 
 @Repository
 public class SubTaskRepository {
+    public List<SubTask> findByTaskIds(java.util.Collection<Long> ids) {
+        if (ids.isEmpty()) return List.of();
+        return new org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate(jdbc).query(
+                "SELECT " + COLUMNS + " FROM sub_task WHERE task_id IN (:ids) ORDER BY order_index, id",
+                java.util.Map.of("ids", ids), this::mapRow);
+    }
     private final JdbcTemplate jdbc;
     public SubTaskRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
     private static final String COLUMNS = "id, task_id, title, description, scheduled_date, done, completed_at, order_index, created_at";
@@ -40,6 +46,11 @@ public class SubTaskRepository {
                 """, subTask.getTitle(), subTask.getDescription(), sqlDate(subTask.getScheduledDate()),
                 subTask.getOrderIndex(), subTask.getId()) == 1;
     }
+    public boolean updateCompletion(SubTask subTask) {
+        return jdbc.update("UPDATE sub_task SET done = ?, completed_at = ? WHERE id = ?",
+                subTask.isDone(), subTask.getCompletedAt(), subTask.getId()) == 1;
+    }
+
     public boolean deleteById(long id) { return jdbc.update("DELETE FROM sub_task WHERE id = ?", id) == 1; }
 
     private Date sqlDate(LocalDate date) { return date == null ? null : Date.valueOf(date); }

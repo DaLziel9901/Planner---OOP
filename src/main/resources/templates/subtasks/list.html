@@ -7,16 +7,26 @@
     <ul role="alert" th:if="${!errors.isEmpty()}"><li th:each="error : ${errors}" th:text="${error.value}"></li></ul>
     <p th:if="${task == null}"><a th:href="@{/tasks}">Chọn một Task từ danh sách</a></p>
     <section th:if="${task != null}">
+        <p>Tiến độ Task: <span th:text="${progress.label}"></span></p>
         <p>Task: <a th:href="@{/tasks/{id}(id=${task.id})}" th:text="${task.title}"></a></p>
         <p><a th:href="@{/subtasks/new(taskId=${task.id})}">Thêm SubTask</a></p>
-        <p th:if="${#lists.isEmpty(subTasks)}">Chưa có SubTask.</p>
-        <table th:unless="${#lists.isEmpty(subTasks)}">
+        <p th:if="${treeAvailable and #lists.isEmpty(subTasks)}">Chưa có SubTask.</p>
+        <p th:unless="${treeAvailable}">Chưa tải đầy đủ danh sách SubTask.</p>
+        <table th:if="${treeAvailable and !#lists.isEmpty(subTasks)}">
             <thead><tr><th>Tên</th><th>Ngày dự kiến</th><th>Thứ tự</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
             <tbody><tr th:each="leaf : ${subTasks}">
                 <td><a th:href="@{/subtasks/{id}(id=${leaf.id})}" th:text="${leaf.title}"></a></td>
                 <td th:text="${leaf.scheduledDate}"></td><td th:text="${leaf.orderIndex}"></td>
                 <td th:text="${leaf.done ? 'Đã hoàn thành' : 'Chưa hoàn thành'}"></td>
-                <td><a th:href="@{/subtasks/{id}/edit(id=${leaf.id})}">Sửa</a></td>
+                <td>
+                    <a th:href="@{/subtasks/{id}/edit(id=${leaf.id})}">Sửa</a>
+                    <form method="post" th:action="@{/subtasks/{id}/completion(id=${leaf.id})}">
+                        <input type="hidden" name="source" value="subtasks">
+                        <input type="hidden" name="sourceId" th:value="${task.id}">
+                        <button type="submit" name="done" th:value="${!leaf.done}"
+                                th:text="${leaf.done ? 'Bỏ đánh dấu hoàn thành' : 'Đánh dấu hoàn thành'}"></button>
+                    </form>
+                </td>
             </tr></tbody>
         </table>
     </section>

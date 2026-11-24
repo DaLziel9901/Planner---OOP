@@ -7,16 +7,17 @@
     <p><a th:href="@{/plans/new}">Thêm Plan</a> | <a th:href="@{/subplans}">Quản lý SubPlan</a> | <a th:href="@{/tasks}">Task độc lập</a></p>
     <p th:if="${#lists.isEmpty(plans)}">Chưa có kế hoạch. Chọn Thêm Plan để bắt đầu.</p>
     <table th:unless="${#lists.isEmpty(plans)}">
-        <thead><tr><th>ID</th><th>Tên</th><th>Mục tiêu</th><th>Ngày bắt đầu</th><th>Ngày kết thúc</th><th>Thao tác</th></tr></thead>
+        <thead><tr><th>ID</th><th>Tên</th><th>Mục tiêu</th><th>Ngày bắt đầu</th><th>Ngày kết thúc</th><th>Tiến độ</th><th>Thao tác</th></tr></thead>
         <tbody><tr th:each="plan : ${plans}">
             <td th:text="${plan.id}"></td>
             <td><a th:href="@{/plans/{id}(id=${plan.id})}" th:text="${plan.title}"></a></td>
             <td th:text="${plan.goal}"></td>
             <td th:text="${plan.startDate}"></td><td th:text="${plan.endDate}"></td>
+            <td th:text="${progressById[plan.id].label}"></td>
             <td><a th:href="@{/plans/{id}/edit(id=${plan.id})}">Sửa</a>
                 | <a th:href="@{/subplans(planId=${plan.id})}">Các SubPlan</a>
                 | <a th:href="@{/tasks(planId=${plan.id})}">Task trực tiếp</a></td>
         </tr></tbody>
     </table>
-    <p th:unless="${progressAvailable}">Chưa nạp toàn bộ cây công việc để tính tiến độ.</p>
+    <p th:unless="${progressAvailable}">Chưa có tiến độ khả dụng.</p>
 </main></body></html>

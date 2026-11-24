@@ -2,6 +2,9 @@ package com.example.planner.controller;
 
 import com.example.planner.service.SubTaskService;
 import com.example.planner.service.TaskService;
+import com.example.planner.service.PlanTreeService;
+import com.example.planner.service.ProgressPresentation;
+import com.example.planner.model.Task;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -13,17 +16,25 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import com.example.planner.model.SubTask;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 @Controller
 @RequestMapping("/subtasks")
 public class SubTaskController {
     private final SubTaskService service;
     private final TaskService tasks;
-    public SubTaskController(SubTaskService service,TaskService tasks) { this.service=service; this.tasks=tasks; }
+    private final PlanTreeService trees;
+    public SubTaskController(SubTaskService service,TaskService tasks,PlanTreeService trees) { this.service=service; this.tasks=tasks; this.trees=trees; }
     @GetMapping
     public String list(@RequestParam(name="taskId",required=false) Long taskId,Model model) {
-        model.addAttribute("task",taskId == null ? null : tasks.getById(taskId));
-        model.addAttribute("subTasks",taskId == null ? List.of() : service.findByTaskId(taskId));
+        Task main=taskId==null?null:ProgressReadSupport.primary(()->tasks.getById(taskId));
+        if(taskId!=null) ProgressReadSupport.primary(()->service.findByTaskId(taskId));
+        var snapshot=taskId==null?java.util.Optional.<PlanTreeService.TaskSnapshot>empty():ProgressReadSupport.tree(()->trees.loadTask(taskId));
+        Task displayed=snapshot.map(PlanTreeService.TaskSnapshot::task).orElse(main);
+        model.addAttribute("task",displayed);
+        model.addAttribute("subTasks",snapshot.isPresent()?displayed.getSubTasks():List.of());
+        model.addAttribute("progress",snapshot.isPresent()?ProgressPresentation.from(displayed):ProgressPresentation.unavailable());
+        model.addAttribute("treeAvailable",snapshot.isPresent());
         model.addAttribute("errors",taskId == null ? Map.of("taskId","Chọn một Task để xem SubTask") : Map.of());
         return "subtasks/list";
     }
@@ -34,8 +45,15 @@ public class SubTaskController {
     }
     @GetMapping("/{id}")
     public String detail(@PathVariable("id") long id,Model model) {
-        SubTask leaf=service.getById(id);
-        model.addAttribute("subTask",leaf); model.addAttribute("task",tasks.getById(leaf.getTaskId()));
+        SubTask leaf=ProgressReadSupport.primary(()->service.getById(id));
+        Task main=ProgressReadSupport.primary(()->tasks.getById(leaf.getTaskId()));
+        var snapshot=ProgressReadSupport.tree(()->trees.loadTask(leaf.getTaskId()));
+        Task displayed=snapshot.map(PlanTreeService.TaskSnapshot::task).orElse(main);
+        SubTask current=snapshot.isEmpty()?leaf:displayed.getSubTasks().stream().filter(s->s.getId()==id).findFirst()
+                .orElseThrow(()->new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND,"Không tìm thấy SubTask"));
+        model.addAttribute("subTask",current); model.addAttribute("task",displayed);
+        model.addAttribute("progress",snapshot.isPresent()?ProgressPresentation.from(displayed):ProgressPresentation.unavailable());
+        model.addAttribute("treeAvailable",snapshot.isPresent());
         return "subtasks/detail";
     }
     @GetMapping("/{id}/edit")
@@ -54,6 +72,39 @@ public class SubTaskController {
         SubTask current=service.getById(id); // ID thiếu vẫn 404 ngay cả khi form sai.
         return save(id,current.getTaskId(),params,model,flash);
     }
+    @PostMapping("/{id}/completion")
+    public String completion(@PathVariable("id") long id, @RequestParam("done") String done,
+                             @RequestParam(name="source", required=false) String source,
+                             @RequestParam(name="sourceId", required=false) String sourceId,
+                             RedirectAttributes flash) {
+        if (!"true".equals(done) && !"false".equals(done)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "done phải là true hoặc false");
+        }
+        boolean completed = Boolean.parseBoolean(done);
+        long taskId = service.setCompletion(id, completed);
+        flash.addFlashAttribute("message", completed ? "Đã đánh dấu hoàn thành SubTask" : "Đã bỏ đánh dấu hoàn thành SubTask");
+        return "redirect:" + completionSource(id, taskId, source, sourceId);
+    }
+
+    private String completionSource(long id, long taskId, String source, String sourceId) {
+        String fallback = "/subtasks/" + id;
+        if (source == null || sourceId == null) return fallback;
+        long target;
+        try {
+            target = Long.parseLong(sourceId);
+        } catch (NumberFormatException exception) {
+            return fallback;
+        }
+        if (target <= 0) return fallback;
+        return switch (source) {
+            case "task" -> target == taskId ? "/tasks/" + taskId : fallback;
+            case "subtasks" -> target == taskId ? "/subtasks?taskId=" + taskId : fallback;
+            case "plan" -> tasks.isAncestor(taskId, target, null) ? "/plans/" + target : fallback;
+            case "subplan" -> tasks.isAncestor(taskId, null, target) ? "/subplans/" + target : fallback;
+            default -> fallback;
+        };
+    }
+
     @PostMapping("/{id}/delete")
     public String delete(@PathVariable("id") long id,RedirectAttributes flash) {
         long taskId=service.delete(id);

@@ -13,9 +13,10 @@
         <dt>Thứ tự</dt><dd th:text="${subPlan.orderIndex}"></dd>
         <dt>Thời điểm tạo</dt><dd th:text="${subPlan.createdAt}"></dd></dl>
     <ul th:if="${!#lists.isEmpty(warnings)}" role="status"><li th:each="warning : ${warnings}" th:text="${warning}"></li></ul>
-    <p th:unless="${progressAvailable}">Chưa nạp Task/SubTask để tính tiến độ.</p>
+    <p th:text="${progress.label}"></p>
     <h2>SubPlan con trực tiếp</h2>
-    <p th:if="${#lists.isEmpty(children)}">Chưa có SubPlan con trực tiếp.</p>
+    <p th:if="${treeAvailable and #lists.isEmpty(children)}">Chưa có SubPlan con trực tiếp.</p>
+    <p th:unless="${treeAvailable}">Chưa tải đầy đủ nhánh SubPlan.</p>
     <ul><li th:each="child : ${children}"><a th:href="@{/subplans/{id}(id=${child.id})}" th:text="${child.title}"></a></li></ul>
     <p><a th:href="@{/subplans/new(planId=${plan.id},parentSubPlanId=${subPlan.id})}">Thêm SubPlan con</a>
         | <a th:href="@{/subplans/{id}/edit(id=${subPlan.id})}">Sửa</a>

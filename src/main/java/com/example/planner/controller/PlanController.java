@@ -2,6 +2,8 @@ package com.example.planner.controller;
 
 import com.example.planner.model.Plan;
 import com.example.planner.service.PlanService;
+import com.example.planner.service.PlanTreeService;
+import com.example.planner.service.ProgressPresentation;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -23,14 +25,20 @@ public class PlanController {
 
     private final PlanService planService;
 
-    public PlanController(PlanService planService) {
+    private final PlanTreeService trees;
+    public PlanController(PlanService planService,PlanTreeService trees) {
         this.planService = planService;
+        this.trees=trees;
     }
 
     @GetMapping
     public String list(Model model) {
-        model.addAttribute("plans", planService.findAll());
-        model.addAttribute("progressAvailable", false);
+        var main=ProgressReadSupport.primary(planService::findAll);
+        var snapshot=ProgressReadSupport.tree(trees::loadPlans);
+        var displayed=snapshot.orElse(main);
+        model.addAttribute("plans",displayed);
+        model.addAttribute("progressById",ProgressReadSupport.progress(displayed,Plan::getId,snapshot.isPresent()));
+        model.addAttribute("progressAvailable",snapshot.isPresent());
 
         return "plans/list";
     }
@@ -83,12 +91,16 @@ public class PlanController {
             @PathVariable("id") long id,
             Model model
     ) {
-        model.addAttribute("plan", planService.getById(id));
+        Plan main=ProgressReadSupport.primary(()->planService.getById(id));
+        var snapshot=ProgressReadSupport.tree(()->trees.loadPlan(id));
+        Plan displayed=snapshot.map(PlanTreeService.PlanSnapshot::plan).orElse(main);
+        model.addAttribute("plan",displayed);
+        model.addAttribute("progress",snapshot.isPresent()?ProgressPresentation.from(displayed):ProgressPresentation.unavailable());
         model.addAttribute("taskListUrl", "/tasks?planId=" + id);
         model.addAttribute("newTaskUrl", "/tasks/new?planId=" + id);
 
-        // Chưa nạp Task/SubPlan/SubTask, không hiển thị tiến độ.
-        model.addAttribute("progressAvailable", false);
+        // Chỉ dùng số tiến độ từ snapshot đã nạp đủ.
+        model.addAttribute("progressAvailable",snapshot.isPresent());
 
         return "plans/detail";
     }

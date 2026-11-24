@@ -3,7 +3,8 @@ package com.example.planner.controller;
 import com.example.planner.service.TaskService;
 import com.example.planner.service.PlanService;
 import com.example.planner.service.SubPlanService;
-import com.example.planner.service.SubTaskService;
+import com.example.planner.service.PlanTreeService;
+import com.example.planner.service.ProgressPresentation;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -25,17 +26,22 @@ public class TaskController {
     private final TaskService service;
     private final PlanService plans;
     private final SubPlanService subPlans;
-    private final SubTaskService subTasks;
-    public TaskController(TaskService service, PlanService plans, SubPlanService subPlans, SubTaskService subTasks) {
-        this.service = service; this.plans = plans; this.subPlans = subPlans; this.subTasks = subTasks;
+    private final PlanTreeService trees;
+    public TaskController(TaskService service, PlanService plans, SubPlanService subPlans, PlanTreeService trees) {
+        this.service = service; this.plans = plans; this.subPlans = subPlans; this.trees = trees;
     }
     @GetMapping
     public String list(@RequestParam Map<String,String> params, Model model) {
         Location location = requestLocation(params);
         locationContext(location, model);
-        model.addAttribute("tasks", location.planId() != null ? service.findByPlanId(location.planId())
-                : location.subPlanId() != null ? service.findBySubPlanId(location.subPlanId()) : service.findIndependent());
-        model.addAttribute("progressAvailable", false);
+        List<Task> main=ProgressReadSupport.primary(()->location.planId()!=null ? service.findByPlanId(location.planId())
+                : location.subPlanId()!=null ? service.findBySubPlanId(location.subPlanId()) : service.findIndependent());
+        var snapshot=ProgressReadSupport.tree(()->trees.loadTasks(location.planId(),location.subPlanId()));
+        List<Task> displayed=snapshot.map(PlanTreeService.TaskListSnapshot::tasks).orElse(main);
+        snapshot.ifPresent(s->setLocationContext(location,s.plan(),s.subPlan(),model));
+        model.addAttribute("tasks",displayed);
+        model.addAttribute("progressById",ProgressReadSupport.progress(displayed,Task::getId,snapshot.isPresent()));
+        model.addAttribute("progressAvailable",snapshot.isPresent());
         return "tasks/list";
     }
 
@@ -49,11 +55,15 @@ public class TaskController {
 
     @GetMapping("/{id}")
     public String detail(@PathVariable("id") long id, Model model) {
-        Task task = service.getById(id);
-        model.addAttribute("task", task);
-        model.addAttribute("subTasks", subTasks.findByTaskId(id));
+        Task task = ProgressReadSupport.primary(()->service.getById(id));
         locationContext(new Location(task.getPlanId(), task.getSubPlanId()), model);
-        model.addAttribute("progressAvailable", false);
+        var snapshot=ProgressReadSupport.tree(()->trees.loadTask(id));
+        Task displayed=snapshot.map(PlanTreeService.TaskSnapshot::task).orElse(task);
+        snapshot.ifPresent(s->setLocationContext(new Location(displayed.getPlanId(),displayed.getSubPlanId()),s.plan(),s.subPlan(),model));
+        model.addAttribute("task",displayed);
+        model.addAttribute("subTasks",snapshot.isPresent()?displayed.getSubTasks():List.of());
+        model.addAttribute("progress",snapshot.isPresent()?ProgressPresentation.from(displayed):ProgressPresentation.unavailable());
+        model.addAttribute("progressAvailable",snapshot.isPresent()); model.addAttribute("treeAvailable",snapshot.isPresent());
         return "tasks/detail";
     }
 
@@ -195,13 +205,18 @@ public class TaskController {
     }
 
     private void locationContext(Location location, Model model) {
+        Plan plan=location.planId()==null?null:ProgressReadSupport.primary(()->plans.getById(location.planId()));
+        SubPlan sub=location.subPlanId()==null?null:ProgressReadSupport.primary(()->subPlans.getById(location.subPlanId()));
+        setLocationContext(location,plan,sub,model);
+    }
+    private void setLocationContext(Location location,Plan plan,SubPlan sub,Model model) {
         String label = "Task độc lập";
         String parentUrl = null;
         if (location.planId() != null) {
-            label = "Task trực tiếp của Plan: " + plans.getById(location.planId()).getTitle();
+            label = "Task trực tiếp của Plan: " + plan.getTitle();
             parentUrl = "/plans/" + location.planId();
         } else if (location.subPlanId() != null) {
-            label = "Task trực tiếp của SubPlan: " + subPlans.getById(location.subPlanId()).getTitle();
+            label = "Task trực tiếp của SubPlan: " + sub.getTitle();
             parentUrl = "/subplans/" + location.subPlanId();
         }
         model.addAttribute("locationLabel", label); model.addAttribute("parentUrl", parentUrl);
