@@ -2,6 +2,7 @@ package com.example.planner.controller;
 
 import com.example.planner.model.Plan;
 import com.example.planner.service.PlanService;
+import com.example.planner.service.PlanTreeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class PlanViewTest {
     @Autowired WebApplicationContext context;
     @Autowired PlanService service;
+    @Autowired PlanTreeService trees;
     private MockMvc mvc;
     private Plan plan;
 
@@ -40,7 +42,8 @@ class PlanViewTest {
     @EnableWebMvc
     static class Config {
         @Bean PlanService planService() { return mock(PlanService.class); }
-        @Bean PlanController controller(PlanService service) { return new PlanController(service); }
+        @Bean PlanTreeService planTreeService() { return mock(PlanTreeService.class); }
+        @Bean PlanController controller(PlanService service,PlanTreeService trees) { return new PlanController(service,trees); }
         @Bean ThymeleafViewResolver viewResolver() {
             ClassLoaderTemplateResolver templates = new ClassLoaderTemplateResolver();
             templates.setPrefix("templates/");
@@ -58,7 +61,9 @@ class PlanViewTest {
 
     @BeforeEach
     void setUp() {
-        reset(service);
+        reset(service,trees);
+        when(trees.loadPlan(anyLong())).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("Tree unavailable"));
+        when(trees.loadPlans()).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("Tree unavailable"));
         mvc = MockMvcBuilders.webAppContextSetup(context).build();
         plan = new Plan(1L, "TOEIC", null, null, null, OffsetDateTime.parse("2026-11-01T00:00:00Z"));
         when(service.getById(1L)).thenReturn(plan);
@@ -70,6 +75,8 @@ class PlanViewTest {
         mvc.perform(get("/plans")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("/plans/1")))
                 .andExpect(content().string(containsString("/subplans?planId=1")))
+                .andExpect(content().string(containsString("/tasks?planId=1")))
+                .andExpect(content().string(containsString("href=\"/tasks\"")))
                 .andExpect(content().string(containsString("TOEIC")));
         when(service.findAll()).thenReturn(List.of());
         mvc.perform(get("/plans")).andExpect(status().isOk())
@@ -120,7 +127,7 @@ class PlanViewTest {
         mvc.perform(get("/plans/1")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("&lt;script&gt;")))
                 .andExpect(content().string(not(containsString("<script>"))))
-                .andExpect(content().string(containsString("Chưa nạp toàn bộ SubPlan/Task/SubTask")))
+                .andExpect(content().string(containsString("Chưa có tiến độ khả dụng")))
                 .andExpect(content().string(containsString("method=\"post\"")))
                 .andExpect(content().string(containsString("action=\"/plans/1/delete\"")))
                 .andExpect(content().string(containsString("confirm(")))
@@ -135,6 +142,23 @@ class PlanViewTest {
                 .andExpect(flash().attribute("message", "Đã tạo kế hoạch"));
         mvc.perform(get("/plans/1").flashAttr("message", "Đã tạo kế hoạch"))
                 .andExpect(status().isOk()).andExpect(content().string(containsString("Đã tạo kế hoạch")));
+    }
+
+    @Test void loadedEmptyDoesNotDisplayAnyPercentage() throws Exception {
+        doReturn(new PlanTreeService.PlanSnapshot(plan,List.of())).when(trees).loadPlan(1);
+        mvc.perform(get("/plans/1")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Chưa có công việc")))
+                .andExpect(content().string(not(containsString("0%"))));
+    }
+    @Test void listAndDetailRenderFinalRoundedLeafCountsFromSnapshot() throws Exception {
+        Plan loaded=new Plan(1L,"Snapshot",null,null,null,OffsetDateTime.now());
+        var task=new com.example.planner.model.Task(11L,1L,null,"Task",null,null,null,0,OffsetDateTime.now());
+        for(long i=1;i<=3;i++) task.addSubTask(new com.example.planner.model.SubTask(i,11L,"Leaf",null,null,i==1,i==1?OffsetDateTime.now():null,0,OffsetDateTime.now()));
+        loaded.addTask(task);
+        doReturn(new PlanTreeService.PlanSnapshot(loaded,List.of())).when(trees).loadPlan(1);
+        doReturn(List.of(loaded)).when(trees).loadPlans();
+        mvc.perform(get("/plans/1")).andExpect(status().isOk()).andExpect(content().string(containsString("1/3 SubTask — 33,33%")));
+        mvc.perform(get("/plans")).andExpect(status().isOk()).andExpect(content().string(containsString("1/3 SubTask — 33,33%")));
     }
 
     @Test

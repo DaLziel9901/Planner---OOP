@@ -2,6 +2,7 @@ package com.example.planner.service;
 
 import com.example.planner.model.Plan;
 import com.example.planner.repository.PlanRepository;
+import com.example.planner.repository.SubPlanRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -20,11 +21,13 @@ import static org.mockito.Mockito.*;
 class PlanServiceTest {
     private PlanRepository repository;
     private PlanService service;
+    private SubPlanRepository locks;
 
     @BeforeEach
     void setUp() {
         repository = mock(PlanRepository.class);
-        service = new PlanService(repository);
+        locks = mock(SubPlanRepository.class);
+        service = new PlanService(repository, locks);
     }
 
     @Test
@@ -110,6 +113,7 @@ class PlanServiceTest {
 
     @Test
     void deleteUsesRepositoryAndDatabaseErrorsAreNotHidden() {
+        when(locks.lockPlan(1L)).thenReturn(true);
         when(repository.deleteById(1L)).thenReturn(true);
         service.delete(1L);
         verify(repository).deleteById(1L);
@@ -117,5 +121,68 @@ class PlanServiceTest {
         when(repository.insert(any(Plan.class))).thenThrow(failure);
         assertSame(failure, assertThrows(DataAccessResourceFailureException.class,
                 () -> service.create("Tên", null, null, null)));
+    }
+
+    @Test
+    void deleteLocksSamePlanBeforeDelete() {
+        when(locks.lockPlan(7L)).thenReturn(true);
+        when(repository.deleteById(7L)).thenReturn(true);
+        service.delete(7L);
+        var order = inOrder(locks, repository);
+        order.verify(locks).lockPlan(7L);
+        order.verify(repository).deleteById(7L);
+        order.verifyNoMoreInteractions();
+    }
+
+    @Test
+    void missingPlanAtLockNeverDeletesAndInvalidIdNeverLocks() {
+        assertEquals(404, assertThrows(ResponseStatusException.class,
+                () -> service.delete(7L)).getStatusCode().value());
+        verify(repository, never()).deleteById(anyLong());
+        assertThrows(ResponseStatusException.class, () -> service.delete(0L));
+        verify(locks, never()).lockPlan(0L);
+    }
+
+    @Test
+    void missingPlanAfterLockStillReturns404() {
+        when(locks.lockPlan(7L)).thenReturn(true);
+        assertEquals(404, assertThrows(ResponseStatusException.class,
+                () -> service.delete(7L)).getStatusCode().value());
+        var order = inOrder(locks, repository);
+        order.verify(locks).lockPlan(7L);
+        order.verify(repository).deleteById(7L);
+    }
+
+    @Test
+    void lockFailureIsPropagatedWithoutDeleting() {
+        var failure = new DataAccessResourceFailureException("DB unavailable");
+        when(locks.lockPlan(7L)).thenThrow(failure);
+        assertSame(failure, assertThrows(DataAccessResourceFailureException.class,
+                () -> service.delete(7L)));
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void transactionalProxyBeginsBeforeLockAndCommitsOrRollsBack() {
+        var manager = mock(org.springframework.transaction.PlatformTransactionManager.class);
+        var status = mock(org.springframework.transaction.TransactionStatus.class);
+        when(manager.getTransaction(any())).thenReturn(status);
+        var interceptor = new org.springframework.transaction.interceptor.TransactionInterceptor();
+        interceptor.setTransactionManager(manager);
+        interceptor.setTransactionAttributeSource(
+                new org.springframework.transaction.annotation.AnnotationTransactionAttributeSource());
+        var factory = new org.springframework.aop.framework.ProxyFactory(service);
+        factory.addAdvice(interceptor);
+        PlanService proxy = (PlanService) factory.getProxy();
+        when(locks.lockPlan(7L)).thenReturn(true);
+        when(repository.deleteById(7L)).thenReturn(true);
+        proxy.delete(7L);
+        var order = inOrder(manager, locks, repository);
+        order.verify(manager).getTransaction(any());
+        order.verify(locks).lockPlan(7L);
+        order.verify(repository).deleteById(7L);
+        order.verify(manager).commit(status);
+        assertThrows(ResponseStatusException.class, () -> proxy.delete(8L));
+        verify(manager).rollback(status);
     }
 }

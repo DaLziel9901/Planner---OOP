@@ -9,6 +9,40 @@ import static org.junit.jupiter.api.Assertions.*;
 class SubPlanTest {
 
     @Test
+    void titleLimitCountsUnicodeCodePointsAndPreservesTitleAfterRejection() {
+        String symbol = "\uD83D\uDE80";
+        SubPlan subPlan = new SubPlan(symbol.repeat(255));
+        assertEquals(255, subPlan.getTitle().codePointCount(0, subPlan.getTitle().length()));
+        assertThrows(IllegalArgumentException.class, () -> subPlan.setTitle(symbol.repeat(256)));
+        assertEquals(symbol.repeat(255), subPlan.getTitle());
+        subPlan.setTitle(symbol);
+        assertEquals(symbol, subPlan.getTitle());
+        assertThrows(IllegalArgumentException.class, () -> subPlan.setTitle(""));
+        assertThrows(IllegalArgumentException.class, () -> subPlan.setTitle("\t\n\u2003"));
+    }
+
+    @Test
+    void optionalFieldsAndDefaultOrderPreserveCreationTime() {
+        SubPlan subPlan = new SubPlan("SubPlan");
+        OffsetDateTime created = subPlan.getCreatedAt();
+        LocalDate date = LocalDate.of(2026, 11, 12);
+        assertEquals(0, subPlan.getOrderIndex());
+        subPlan.setDescription("");
+        assertEquals("", subPlan.getDescription());
+        subPlan.setDates(date, null);
+        assertEquals(date, subPlan.getStartDate());
+        assertNull(subPlan.getEndDate());
+        subPlan.setDates(null, date);
+        assertNull(subPlan.getStartDate());
+        assertEquals(date, subPlan.getEndDate());
+        subPlan.setDates(null, null);
+        assertNull(subPlan.getStartDate());
+        assertNull(subPlan.getEndDate());
+        assertThrows(IllegalArgumentException.class, () -> subPlan.setId(0L));
+        assertEquals(created, subPlan.getCreatedAt());
+    }
+
+    @Test
     void emptySubPlanHasNoWork() {
         SubPlan stage = new SubPlan("Giai đoạn");
         assertEquals(0, stage.getTotalCount());

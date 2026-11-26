@@ -21,6 +21,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @EnabledIfEnvironmentVariable(named = "TEST_DB_URL", matches = ".+")
 class SubPlanRepositoryTest {
+    @Test void batchSubPlansIncludesEveryLevelAndOnlySelectedPlans() {
+        long root=service.create(planId,null,"Root",null,null,null,0);
+        long child=service.create(planId,root,"Child",null,null,null,0);
+        long other=plans.insert(new Plan("Other")); long third=service.create(other,null,"Other sub",null,null,null,0);
+        assertEquals(List.of(root,child),repository.findByPlanIds(List.of(planId,planId)).stream().map(SubPlan::getId).toList());
+        assertEquals(List.of(root,child,third),repository.findByPlanIds(List.of(planId,other)).stream().map(SubPlan::getId).toList());
+        assertTrue(repository.findByPlanIds(List.of()).isEmpty());
+    }
     private Connection connection;
     private JdbcTemplate jdbc;
     private PlanRepository plans;
@@ -31,8 +39,8 @@ class SubPlanRepositoryTest {
     @BeforeEach
     void setUp() throws Exception {
         String url = System.getenv("TEST_DB_URL");
-        if (!url.matches("jdbc:postgresql://[^/]+/[A-Za-z0-9_]+_test(?:\\?.*)?")) {
-            throw new IllegalArgumentException("Chỉ dùng database riêng kết thúc bằng _test");
+        if (!url.matches("jdbc:postgresql://[^/]+/planner(?:\\?.*)?")) {
+            throw new IllegalArgumentException("Chỉ cho phép database planner đã được xác nhận chỉ chứa dữ liệu thử");
         }
         String password = System.getenv("TEST_DB_PASSWORD");
         if (password == null) throw new IllegalArgumentException("Cần đặt TEST_DB_PASSWORD");
@@ -99,13 +107,19 @@ class SubPlanRepositoryTest {
         long second = service.create(planId, root, "Tầng 2", null, null, null, 0);
         long third = service.create(planId, second, "Tầng 3", null, null, null, 0);
         long fourth = service.create(planId, third, "Tầng 4", null, null, null, 0);
-        service.create(planId, fourth, "Tầng 5", null, null, null, 0);
+        long fifth = service.create(planId, fourth, "Tầng 5", null, null, null, 0);
+        int before = repository.findByPlanId(planId).size();
+        assertThrows(SubPlanService.InputException.class,
+                () -> service.create(planId, fifth, "Tầng 6", null, null, null, 0));
+        assertEquals(before, repository.findByPlanId(planId).size());
         assertThrows(SubPlanService.InputException.class,
                 () -> service.update(root, third, "Vòng lặp", null, null, null, 0));
         long moved = service.create(planId, null, "Nhánh chuyển", null, null, null, 0);
         long child = service.create(planId, moved, "Con đi cùng", null, null, null, 0);
         assertThrows(SubPlanService.InputException.class,
                 () -> service.update(moved, fourth, "Quá sâu", null, null, null, 0));
+        assertNull(repository.findById(moved).orElseThrow().getParentSubPlanId());
+        assertEquals("Nhánh chuyển", repository.findById(moved).orElseThrow().getTitle());
         service.update(moved, third, "Đúng độ sâu", null, null, null, 0);
         assertEquals(third, repository.findById(moved).orElseThrow().getParentSubPlanId());
         assertEquals(moved, repository.findById(child).orElseThrow().getParentSubPlanId());
@@ -121,6 +135,8 @@ class SubPlanRepositoryTest {
         Long leaf = jdbc.queryForObject("INSERT INTO sub_task(task_id,title) VALUES (?,?) RETURNING id",
                 Long.class, task, "SubTask");
         assertEquals(planId, service.delete(root));
+        assertTrue(repository.findById(root).isEmpty());
+        assertTrue(plans.findById(planId).isPresent());
         assertTrue(repository.findById(child).isEmpty());
         assertTrue(repository.findById(sibling).isPresent());
         assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM task WHERE id = ?", Integer.class, task));

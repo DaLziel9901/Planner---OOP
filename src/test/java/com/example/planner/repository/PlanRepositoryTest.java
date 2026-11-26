@@ -26,8 +26,8 @@ class PlanRepositoryTest {
     @BeforeEach
     void setUp() throws Exception {
         String url = System.getenv("TEST_DB_URL");
-        if (!url.matches("jdbc:postgresql://[^/]+/[A-Za-z0-9_]+_test(?:\\?.*)?")) {
-            throw new IllegalArgumentException("Chỉ cho phép database riêng có tên kết thúc bằng _test");
+        if (!url.matches("jdbc:postgresql://[^/]+/planner(?:\\?.*)?")) {
+            throw new IllegalArgumentException("Chỉ cho phép database planner đã được xác nhận chỉ chứa dữ liệu thử");
         }
         String username = System.getenv().getOrDefault("TEST_DB_USERNAME", "postgres");
         String password = System.getenv("TEST_DB_PASSWORD");

@@ -11,6 +11,21 @@ import static org.junit.jupiter.api.Assertions.*;
 class TaskTest {
 
     @Test
+    void titleLimitCountsUnicodeCodePointsAndPreservesTitleAfterRejection() {
+        String symbol = "\uD83D\uDE80";
+        Task task = new Task(symbol.repeat(255));
+        assertEquals(255, task.getTitle().codePointCount(0, task.getTitle().length()));
+        assertThrows(IllegalArgumentException.class, () -> task.setTitle(symbol.repeat(256)));
+        assertEquals(symbol.repeat(255), task.getTitle());
+        task.setTitle(symbol);
+        assertEquals(symbol, task.getTitle());
+        assertThrows(IllegalArgumentException.class, () -> task.setTitle(""));
+        assertThrows(IllegalArgumentException.class, () -> task.setTitle("\t\n\u2003"));
+        task.setDescription("");
+        assertEquals("", task.getDescription());
+    }
+
+    @Test
     @DisplayName("Tạo Task tự do rồi sửa thông tin mà không đổi thời điểm tạo")
     void newTaskCanBeEditedAndPreparedForPersistence() {
         Task task = new Task("Học từ");

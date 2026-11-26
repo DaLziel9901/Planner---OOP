@@ -9,6 +9,39 @@ import static org.junit.jupiter.api.Assertions.*;
 class PlanTest {
 
     @Test
+    void titleLimitCountsUnicodeCodePointsAndPreservesTitleAfterRejection() {
+        String symbol = "\uD83D\uDE80";
+        Plan plan = new Plan(symbol.repeat(255));
+        assertEquals(255, plan.getTitle().codePointCount(0, plan.getTitle().length()));
+        assertThrows(IllegalArgumentException.class, () -> plan.setTitle(symbol.repeat(256)));
+        assertEquals(symbol.repeat(255), plan.getTitle());
+        plan.setTitle(symbol);
+        assertEquals(symbol, plan.getTitle());
+        assertThrows(IllegalArgumentException.class, () -> plan.setTitle(""));
+        assertThrows(IllegalArgumentException.class, () -> plan.setTitle("\t\n\u2003"));
+        assertThrows(IllegalArgumentException.class, () -> plan.setTitle(null));
+    }
+
+    @Test
+    void optionalGoalAndEachDateCanBeClearedWithoutChangingCreationTime() {
+        Plan plan = new Plan("Plan");
+        OffsetDateTime created = plan.getCreatedAt();
+        LocalDate date = LocalDate.of(2026, 11, 12);
+        plan.setGoal("");
+        assertEquals("", plan.getGoal());
+        plan.setDates(date, null);
+        assertEquals(date, plan.getStartDate());
+        assertNull(plan.getEndDate());
+        plan.setDates(null, date);
+        assertNull(plan.getStartDate());
+        assertEquals(date, plan.getEndDate());
+        plan.setDates(null, null);
+        assertNull(plan.getStartDate());
+        assertNull(plan.getEndDate());
+        assertEquals(created, plan.getCreatedAt());
+    }
+
+    @Test
     void distinctNodesMayHaveIdenticalTitles() {
         Plan plan = new Plan("Trùng tên");
         Plan otherPlan = new Plan("Trùng tên");

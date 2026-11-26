@@ -39,6 +39,31 @@ class SubPlanServiceTest {
     }
 
     @Test
+    void movingBranchIncludesGrandchildrenAtDepthBoundary() {
+        SubPlan moved = node(10, null);
+        when(repository.findById(10L)).thenReturn(Optional.of(moved));
+        when(repository.findByPlanId(1L)).thenReturn(List.of(
+                node(1, null), node(2, 1L), node(3, 2L),
+                moved, node(11, 10L), node(12, 11L)));
+        assertThrows(SubPlanService.InputException.class,
+                () -> service.update(10L, 3L, "Tầng 6 ở cháu", null, null, null, 0));
+        verify(repository, never()).update(any());
+        when(repository.update(any())).thenReturn(true);
+        service.update(10L, 2L, "Cháu ở tầng 5", null, null, null, 0);
+        verify(repository).update(argThat(value -> Long.valueOf(2L).equals(value.getParentSubPlanId())));
+    }
+
+    @Test
+    void directChildrenExcludeGrandchildrenAndOtherRoots() {
+        SubPlan root = node(1, null);
+        SubPlan child = node(2, 1L);
+        var all = List.of(root, child, node(3, 2L), node(4, null));
+        when(repository.findByPlanId(1L)).thenReturn(all);
+        assertEquals(all, service.findByPlanId(1L));
+        assertEquals(List.of(child), service.getDirectChildren(root));
+    }
+
+    @Test
     void rootCreationAllowsDuplicateNamesAndOptionalFields() {
         when(repository.insert(any())).thenReturn(10L, 11L);
         assertEquals(10L, service.create(1L, null, "Giai đoạn", " ", null, null, 0));
@@ -135,6 +160,7 @@ class SubPlanServiceTest {
         when(repository.findByPlanId(1L)).thenReturn(List.of(root, child));
         assertFalse(service.getDateWarnings(child).isEmpty());
         assertEquals(2, service.getDateWarnings(root).size());
+        assertEquals(service.getDateWarnings(root),service.getDateWarnings(root,plan,List.of(root,child)));
     }
 
     @Test

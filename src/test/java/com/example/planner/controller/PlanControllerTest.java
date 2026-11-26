@@ -25,15 +25,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class PlanControllerTest {
     private PlanService service;
     private MockMvc mvc;
+    private com.example.planner.service.PlanTreeService trees;
 
     @BeforeEach
     void setUp() {
         service = mock(PlanService.class);
+        trees=mock(com.example.planner.service.PlanTreeService.class);
+        when(trees.loadPlan(anyLong())).thenThrow(new DataAccessResourceFailureException("Tree unavailable"));
+        when(trees.loadPlans()).thenThrow(new DataAccessResourceFailureException("Tree unavailable"));
         // Chỉ chuyển tiếp tới đường dẫn giả để kiểm tra tên view/model.
         InternalResourceViewResolver views = new InternalResourceViewResolver();
         views.setPrefix("/test-views/");
         views.setSuffix(".html");
-        mvc = MockMvcBuilders.standaloneSetup(new PlanController(service))
+        mvc = MockMvcBuilders.standaloneSetup(new PlanController(service, trees))
                 .setViewResolvers(views).build();
     }
 
@@ -49,6 +53,8 @@ class PlanControllerTest {
         mvc.perform(get("/plans/1")).andExpect(status().isOk())
                 .andExpect(view().name("plans/detail"))
                 .andExpect(model().attribute("plan", plan))
+                .andExpect(model().attribute("taskListUrl", "/tasks?planId=1"))
+                .andExpect(model().attribute("newTaskUrl", "/tasks/new?planId=1"))
                 .andExpect(model().attribute("progressAvailable", false));
     }
 

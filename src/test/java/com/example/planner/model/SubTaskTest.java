@@ -11,6 +11,21 @@ import static org.junit.jupiter.api.Assertions.*;
 class SubTaskTest {
 
     @Test
+    void titleLimitCountsUnicodeCodePointsAndPreservesTitleAfterRejection() {
+        String symbol = "\uD83D\uDE80";
+        SubTask subTask = new SubTask(symbol.repeat(255));
+        assertEquals(255, subTask.getTitle().codePointCount(0, subTask.getTitle().length()));
+        assertThrows(IllegalArgumentException.class, () -> subTask.setTitle(symbol.repeat(256)));
+        assertEquals(symbol.repeat(255), subTask.getTitle());
+        subTask.setTitle(symbol);
+        assertEquals(symbol, subTask.getTitle());
+        assertThrows(IllegalArgumentException.class, () -> subTask.setTitle(""));
+        assertThrows(IllegalArgumentException.class, () -> subTask.setTitle("\t\n\u2003"));
+        subTask.setDescription("");
+        assertEquals("", subTask.getDescription());
+    }
+
+    @Test
     @DisplayName("Tạo mới rồi bổ sung thông tin để chuẩn bị lưu SubTask")
     void newSubTaskCanBePreparedForPersistence() {
         SubTask subTask = new SubTask("Học từ");
