@@ -7,13 +7,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
-import org.springframework.core.io.ClassPathResource;
+import com.example.planner.support.AuthTestDatabase;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.SingleConnectionDataSource;
-import org.springframework.jdbc.datasource.init.ScriptUtils;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -38,16 +36,9 @@ class SubPlanRepositoryTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        String url = System.getenv("TEST_DB_URL");
-        if (!url.matches("jdbc:postgresql://[^/]+/planner(?:\\?.*)?")) {
-            throw new IllegalArgumentException("Chỉ cho phép database planner đã được xác nhận chỉ chứa dữ liệu thử");
-        }
-        String password = System.getenv("TEST_DB_PASSWORD");
-        if (password == null) throw new IllegalArgumentException("Cần đặt TEST_DB_PASSWORD");
-        connection = DriverManager.getConnection(url,
-                System.getenv().getOrDefault("TEST_DB_USERNAME", "postgres"), password);
+        connection = AuthTestDatabase.openConnection();
         connection.setAutoCommit(false);
-        ScriptUtils.executeSqlScript(connection, new ClassPathResource("schema.sql"));
+        AuthTestDatabase.applyMvpSchema(connection);
         jdbc = new JdbcTemplate(new SingleConnectionDataSource(connection, true));
         plans = new PlanRepository(jdbc);
         repository = new SubPlanRepository(jdbc);

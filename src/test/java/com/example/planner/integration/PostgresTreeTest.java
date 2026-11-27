@@ -3,6 +3,7 @@ package com.example.planner.integration;
 import com.example.planner.model.Plan;
 import com.example.planner.repository.*;
 import com.example.planner.service.*;
+import com.example.planner.support.AuthTestDatabase;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,7 +11,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.jdbc.support.JdbcTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
@@ -27,13 +27,7 @@ abstract class PostgresTreeTest {
     static class Config {
         @Bean
         DataSource dataSource() {
-            String url = System.getenv("TEST_DB_URL");
-            if (!url.matches("jdbc:postgresql://[^/]+/planner(?:\\?.*)?")) {
-                throw new IllegalArgumentException("Integration tests require the planner test database");
-            }
-            String password = System.getenv("TEST_DB_PASSWORD");
-            if (password == null) throw new IllegalArgumentException("Set TEST_DB_PASSWORD");
-            return new DriverManagerDataSource(url, System.getenv().getOrDefault("TEST_DB_USERNAME", "postgres"), password);
+            return AuthTestDatabase.dataSource();
         }
 
         @Bean

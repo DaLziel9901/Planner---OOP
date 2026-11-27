@@ -4,6 +4,7 @@ import com.example.planner.service.TaskService;
 import com.example.planner.service.PlanService;
 import com.example.planner.service.SubPlanService;
 import com.example.planner.service.SubTaskService;
+import com.example.planner.support.AuthTestDatabase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.aop.support.AopUtils;
@@ -24,21 +25,12 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 // HTTP thật qua cổng ngẫu nhiên + Spring service/proxy + PostgreSQL. Không chạy JavaScript.
-@EnabledIfEnvironmentVariable(named = "TEST_DB_URL", matches = "jdbc:postgresql://[^/]+/planner(?:\\?.*)?")
+@EnabledIfEnvironmentVariable(named = "TEST_DB_URL", matches = ".+")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class TaskWebSmokeTest {
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry properties) {
-        String url = System.getenv("DB_URL");
-        if (url == null || !url.equals(System.getenv("TEST_DB_URL"))
-                || !url.matches("jdbc:postgresql://[^/]+/planner(?:\\?.*)?"))
-            throw new IllegalArgumentException("Smoke yêu cầu DB_URL và TEST_DB_URL cùng trỏ planner thử");
-        if (System.getenv("DB_PASSWORD") == null)
-            throw new IllegalArgumentException("Cần DB_PASSWORD cho context ứng dụng thử");
-        // Kiểm tra trước khi context khởi tạo datasource/schema, vẫn lấy cấu hình app từ DB_*.
-        properties.add("spring.datasource.url", () -> url);
-        properties.add("spring.datasource.username", () -> System.getenv().getOrDefault("DB_USERNAME", "postgres"));
-        properties.add("spring.datasource.password", () -> System.getenv("DB_PASSWORD"));
+        AuthTestDatabase.registerApplicationProperties(properties);
     }
 
     @Value("${local.server.port}") int port;
@@ -68,7 +60,7 @@ class TaskWebSmokeTest {
 
     @Test
     void independentCrudWorksThroughRealHttpAndDatabase() throws Exception {
-        assertEquals("planner", jdbc.queryForObject("SELECT current_database()", String.class));
+        assertEquals("planner_auth_test", jdbc.queryForObject("SELECT current_database()", String.class));
         assertEquals(System.getenv("TEST_DB_URL"), System.getenv("DB_URL"));
         assertTrue(AopUtils.isAopProxy(service));
         int plansBefore = jdbc.queryForObject("SELECT count(*) FROM plan", Integer.class);

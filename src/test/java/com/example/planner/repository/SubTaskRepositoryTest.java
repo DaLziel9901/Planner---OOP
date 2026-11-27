@@ -4,12 +4,10 @@ import com.example.planner.model.SubTask;
 import com.example.planner.model.Task;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
-import org.springframework.core.io.ClassPathResource;
+import com.example.planner.support.AuthTestDatabase;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.SingleConnectionDataSource;
-import org.springframework.jdbc.datasource.init.ScriptUtils;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -32,13 +30,9 @@ class SubTaskRepositoryTest {
     private long taskId;
 
     @BeforeEach void setUp() throws Exception {
-        String url=System.getenv("TEST_DB_URL");
-        if (!url.matches("jdbc:postgresql://[^/]+/planner(?:\\?.*)?")) throw new IllegalArgumentException("Chỉ dùng planner thử");
-        String password=System.getenv("TEST_DB_PASSWORD");
-        if (password == null) throw new IllegalArgumentException("Cần TEST_DB_PASSWORD");
-        connection=DriverManager.getConnection(url,System.getenv().getOrDefault("TEST_DB_USERNAME","postgres"),password);
+        connection = AuthTestDatabase.openConnection();
         connection.setAutoCommit(false);
-        ScriptUtils.executeSqlScript(connection,new ClassPathResource("schema.sql"));
+        AuthTestDatabase.applyMvpSchema(connection);
         jdbc=new JdbcTemplate(new SingleConnectionDataSource(connection,true));
         repository=new SubTaskRepository(jdbc); tasks=new TaskRepository(jdbc);
         taskId=tasks.insert(new Task("Task fixture"));

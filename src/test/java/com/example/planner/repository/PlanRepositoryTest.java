@@ -5,13 +5,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
-import org.springframework.core.io.ClassPathResource;
+import com.example.planner.support.AuthTestDatabase;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.SingleConnectionDataSource;
-import org.springframework.jdbc.datasource.init.ScriptUtils;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -25,19 +23,10 @@ class PlanRepositoryTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        String url = System.getenv("TEST_DB_URL");
-        if (!url.matches("jdbc:postgresql://[^/]+/planner(?:\\?.*)?")) {
-            throw new IllegalArgumentException("Chỉ cho phép database planner đã được xác nhận chỉ chứa dữ liệu thử");
-        }
-        String username = System.getenv().getOrDefault("TEST_DB_USERNAME", "postgres");
-        String password = System.getenv("TEST_DB_PASSWORD");
-        if (password == null) {
-            throw new IllegalArgumentException("Cần đặt TEST_DB_PASSWORD cho database thử nghiệm");
-        }
-        connection = DriverManager.getConnection(url, username, password);
+        connection = AuthTestDatabase.openConnection();
         connection.setAutoCommit(false);
         // Schema và dữ liệu đều nằm trong giao dịch này và được rollback sau test.
-        ScriptUtils.executeSqlScript(connection, new ClassPathResource("schema.sql"));
+        AuthTestDatabase.applyMvpSchema(connection);
         jdbc = new JdbcTemplate(new SingleConnectionDataSource(connection, true));
         repository = new PlanRepository(jdbc);
     }
@@ -127,7 +116,7 @@ class PlanRepositoryTest {
     @Test
     void schemaCanRunTwiceWithoutLosingData() throws Exception {
         long id = repository.insert(new Plan("JUnit giữ dữ liệu"));
-        ScriptUtils.executeSqlScript(connection, new ClassPathResource("schema.sql"));
+        AuthTestDatabase.applyMvpSchema(connection);
         assertEquals("JUnit giữ dữ liệu", repository.findById(id).orElseThrow().getTitle());
     }
 }
