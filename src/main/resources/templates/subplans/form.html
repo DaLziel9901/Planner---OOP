@@ -1,36 +1,64 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Form SubPlan</title></head>
-<body><main>
-    <h1 th:text="${editing ? 'Sửa SubPlan' : 'Thêm SubPlan'}"></h1>
-    <p>Thuộc Plan: <span th:text="${plan.title}"></span></p>
-    <ul role="alert" th:if="${!errors.isEmpty()}">
-        <li th:each="error : ${errors}" th:text="${error.value}"></li>
-    </ul>
-    <form method="post" th:action="${formAction}">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: page(${editing ? 'Sửa giai đoạn' : 'Thêm giai đoạn'}, 'subplans', ~{::main})}">
+<head><title>Planner</title></head>
+<body>
+<main id="main-content" class="page-content page-content--form" tabindex="-1">
+    <a class="back-link" th:href="@{/plans} + |#muc-tieu-${plan.id}|">
+        <span aria-hidden="true">←</span> Về mục tiêu
+    </a>
+    <div class="planning-heading">
+        <div>
+            <h1 th:text="${editing ? 'Sửa giai đoạn' : 'Thêm giai đoạn'}"></h1>
+            <p>Mục tiêu <a th:href="@{/plans} + |#muc-tieu-${plan.id}|" th:text="${plan.title}"></a></p>
+        </div>
+    </div>
+    <ul th:replace="~{fragments/planning :: errors(${errors})}"></ul>
+    <form class="planning-form" method="post" th:action="${formAction}">
         <input type="hidden" name="planId" th:value="${plan.id}">
-        <p><label for="title">Tên *</label><br>
-            <input id="title" name="title" th:value="${form['title']}" required maxlength="255"></p>
-        <p><label for="description">Mô tả</label><br>
-            <textarea id="description" name="description" rows="4" th:text="${form['description']}"></textarea></p>
-        <p><label for="parentSubPlanId">SubPlan cha</label><br>
-            <select id="parentSubPlanId" name="parentSubPlanId">
-                <option value="">Trực tiếp dưới Plan (tầng 1)</option>
+        <div class="field">
+            <label for="title">Tên giai đoạn <span aria-hidden="true">*</span></label>
+            <input id="title" name="title" th:value="${form['title']}" required maxlength="255"
+                   th:attr="aria-invalid=${errors['title'] == null ? null : 'true'},
+                            aria-describedby=${errors['title'] == null ? null : 'title-error'}">
+            <p class="field-error" id="title-error" th:if="${errors['title'] != null}"><th:block th:replace="~{fragments/labels :: feedback(${errors['title']})}"></th:block></p>
+        </div>
+        <div class="field">
+            <label for="description">Mô tả</label>
+            <textarea id="description" name="description" rows="4" th:text="${form['description']}"></textarea>
+        </div>
+        <div class="field">
+            <label for="parentSubPlanId">Giai đoạn cha</label>
+            <select id="parentSubPlanId" name="parentSubPlanId"
+                    th:attr="aria-invalid=${errors['parentSubPlanId'] == null ? null : 'true'},
+                             aria-describedby=${errors['parentSubPlanId'] == null ? 'parent-help' : 'parent-error parent-help'}">
+                <option value="">Trực tiếp dưới mục tiêu</option>
                 <option th:if="${!parentSelectionKnown}" th:value="${form['parentSubPlanId']}"
                         selected th:text="${'Giá trị đã gửi: ' + form['parentSubPlanId']}"></option>
                 <option th:each="parent : ${parents}" th:value="${parent.id}"
                         th:selected="${form['parentSubPlanId'] == parent.id.toString()}"
-                        th:text="${'#' + parent.id + ' — ' + parent.title}"></option>
-            </select></p>
-        <p>Tối đa 5 tầng, không chọn chính mình hoặc nhánh con làm cha. Đổi cha chỉ áp dụng trong cùng Plan.</p>
-        <p><label for="startDate">Ngày bắt đầu (yyyy-MM-dd)</label><br>
-            <input id="startDate" name="startDate" placeholder="2026-11-02" th:value="${form['startDate']}"></p>
-        <p><label for="endDate">Ngày kết thúc (yyyy-MM-dd)</label><br>
-            <input id="endDate" name="endDate" placeholder="2026-12-02" th:value="${form['endDate']}"></p>
-        <p>Có thể để trống ngày. Ngày ngoài khoảng cha chỉ được cảnh báo sau khi lưu.</p>
-        <p><label for="orderIndex">Thứ tự (từ 0)</label><br>
-            <input id="orderIndex" name="orderIndex" th:value="${form['orderIndex']}" inputmode="numeric" required></p>
-        <button type="submit">Lưu</button>
-        <a th:href="@{/subplans(planId=${plan.id})}">Hủy</a>
+                        th:text="|#${parent.id} · ${parent.title}|"></option>
+            </select>
+            <p class="field-help" id="parent-help">Có thể lồng tối đa 5 tầng. Chọn một giai đoạn trong cùng mục tiêu.</p>
+            <p class="field-error" id="parent-error" th:if="${errors['parentSubPlanId'] != null}"><th:block th:replace="~{fragments/labels :: feedback(${errors['parentSubPlanId']})}"></th:block></p>
+        </div>
+        <div class="date-fields">
+            <div th:replace="~{fragments/planning :: dateField('startDate', 'Ngày bắt đầu', ${form['startDate']}, ${errors['startDate']})}"></div>
+            <div th:replace="~{fragments/planning :: dateField('endDate', 'Ngày kết thúc', ${form['endDate']}, ${errors['endDate']})}"></div>
+        </div>
+        <p class="field-help" id="date-help">Ngày có thể để trống. Nếu ngày nằm ngoài khoảng của cha, ứng dụng sẽ cảnh báo sau khi lưu.</p>
+        <div class="field field--number">
+            <label for="orderIndex">Thứ tự (từ 0)</label>
+            <input id="orderIndex" name="orderIndex" th:value="${form['orderIndex']}" inputmode="numeric" required
+                   th:attr="aria-invalid=${errors['orderIndex'] == null ? null : 'true'},
+                            aria-describedby=${errors['orderIndex'] == null ? null : 'order-error'}">
+            <p class="field-error" id="order-error" th:if="${errors['orderIndex'] != null}"><th:block th:replace="~{fragments/labels :: feedback(${errors['orderIndex']})}"></th:block></p>
+        </div>
+        <div class="form-actions">
+            <button type="submit">Lưu giai đoạn</button>
+            <a class="button" th:href="@{/plans} + |#muc-tieu-${plan.id}|">Hủy</a>
+        </div>
     </form>
-</main></body></html>
+</main>
+</body>
+</html>

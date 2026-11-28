@@ -1,20 +1,45 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title th:text="${locationLabel}">Danh sách Task</title></head>
-<body><main>
-    <p th:if="${message}" th:text="${message}" role="status"></p>
-    <h1 th:text="${locationLabel}">Danh sách Task</h1>
-    <p><a th:href="${newTaskUrl}">Thêm Task</a> | <a th:href="@{/tasks}">Task độc lập</a> | <a th:href="@{/plans}">Danh sách Plan</a></p>
-    <p th:if="${parentUrl != null}"><a th:href="${parentUrl}">Về cha</a></p>
-    <p th:if="${#lists.isEmpty(tasks)}" th:text="${parentUrl == null ? 'Chưa có Task độc lập.' : 'Chưa có Task trực tiếp ở đây.'}"></p>
-    <p th:unless="${progressAvailable}">Chưa có tiến độ khả dụng.</p>
-    <table th:unless="${#lists.isEmpty(tasks)}">
-        <thead><tr><th>Tên Task</th><th>Ngày bắt đầu</th><th>Ngày kết thúc</th><th>Thứ tự</th><th>Tiến độ</th><th>Thao tác</th></tr></thead>
-        <tbody><tr th:each="task : ${tasks}">
-            <td><a th:href="@{/tasks/{id}(id=${task.id})}" th:text="${task.title}"></a></td>
-            <td th:text="${task.startDate}"></td><td th:text="${task.endDate}"></td><td th:text="${task.orderIndex}"></td>
-            <td th:text="${progressById[task.id].label}"></td>
-            <td><a th:href="@{/tasks/{id}/edit(id=${task.id})}">Sửa</a></td>
-        </tr></tbody>
-    </table>
-</main></body></html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: page('Danh sách công việc', 'tasks', ~{::main})}">
+<head><title>Planner</title></head>
+<body>
+<main id="main-content" class="page-content" tabindex="-1">
+    <nav class="planning-breadcrumb" aria-label="Đường dẫn công việc" th:if="${parentUrl != null}">
+        <a th:href="${parentUrl}">Về mục cha</a>
+        <a th:href="@{/tasks}">Công việc độc lập</a>
+    </nav>
+    <div class="planning-heading">
+        <div>
+            <h1><th:block th:replace="~{fragments/labels :: location(${locationLabel})}"></th:block></h1>
+            <p th:unless="${#lists.isEmpty(tasks)}" th:text="|${#lists.size(tasks)} công việc|"></p>
+        </div>
+        <a class="button button--primary" th:href="${newTaskUrl}"><span aria-hidden="true">+</span> Thêm công việc</a>
+    </div>
+    <p th:replace="~{fragments/labels :: flash(${message})}"></p>
+    <p class="planning-state" th:unless="${progressAvailable}">Chưa có tiến độ khả dụng.</p>
+    <section class="empty-panel" th:if="${#lists.isEmpty(tasks)}">
+        <h2 th:text="${parentUrl == null ? 'Chưa có công việc độc lập' : 'Chưa có công việc trực tiếp ở đây'}"></h2>
+        <p>Tạo công việc để thêm các việc nhỏ và theo dõi tiến độ.</p>
+    </section>
+    <ul class="work-list" th:unless="${#lists.isEmpty(tasks)}">
+        <li class="work-row" th:each="task : ${tasks}">
+            <div class="work-row__summary">
+                <a class="item-title" th:href="@{/tasks/{id}(id=${task.id})}" th:text="${task.title}"></a>
+                <p class="item-meta">
+                    <span th:text="|#${task.id}|"></span>
+                    <span th:text="|Thứ tự ${task.orderIndex}|"></span>
+                    <span class="item-dates" th:if="${task.startDate != null or task.endDate != null}">
+                        <span th:replace="~{fragments/planning :: date(${task.startDate})}"></span>
+                        <span aria-hidden="true">→</span>
+                        <span th:replace="~{fragments/planning :: date(${task.endDate})}"></span>
+                    </span>
+                </p>
+            </div>
+            <div th:replace="~{fragments/progress :: indicator(${progressById[task.id]})}"></div>
+            <a class="button" th:href="@{/tasks/{id}/edit(id=${task.id})}"
+               th:attr="aria-label=|Sửa ${task.title}|">Sửa</a>
+        </li>
+    </ul>
+</main>
+</body>
+</html>

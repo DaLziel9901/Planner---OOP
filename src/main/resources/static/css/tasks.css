@@ -1,0 +1,143 @@
+.work-overview {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(12rem, 2fr);
+    align-items: start;
+    gap: 1rem 1.5rem;
+}
+
+.work-progress-panel {
+    padding: 1rem;
+    border: 1px solid var(--line);
+    border-radius: 0.625rem;
+    background: var(--surface-muted);
+}
+
+.work-section + .work-section,
+.work-overview + .work-section {
+    margin-top: 1rem;
+}
+
+.work-section .section-heading {
+    margin-bottom: 1rem;
+}
+
+.work-list {
+    display: grid;
+    container-type: inline-size;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.work-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(8.5rem, 0.6fr) auto;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    padding: 0.875rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 0.625rem;
+    background: var(--surface);
+}
+
+.work-section .work-row {
+    background: var(--surface-muted);
+}
+
+.work-row .item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+    margin: 0.25rem 0 0;
+}
+
+.work-row__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.work-row :is(.button, button) {
+    font-size: 0.875rem;
+}
+
+.work-status {
+    justify-self: start;
+    padding: 0.25rem 0.625rem;
+    border-radius: 0.5rem;
+    color: var(--muted);
+    background: var(--line);
+    font-size: 0.8125rem;
+    font-weight: 650;
+}
+
+.work-status--done {
+    color: var(--success);
+    background: var(--success-soft);
+}
+
+.subtask-status {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--line);
+}
+
+.work-empty-actions {
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+.location-fields #location-help {
+    margin: 0 0 0.75rem;
+}
+
+.location-fields #location-error {
+    margin: 0 0 0.75rem;
+}
+
+.week-filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 0.625rem;
+    margin-bottom: 0.875rem;
+    padding: 0.875rem;
+    border: 1px solid var(--line);
+    border-radius: 0.625rem;
+    background: var(--surface-muted);
+}
+
+.week-filter__field label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.week-filter__summary {
+    width: 100%;
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+@media (max-width: 64rem) {
+    .work-overview {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@container (max-width: 39rem) {
+    .work-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .work-row__summary,
+    .work-row__actions {
+        grid-column: 1 / -1;
+    }
+
+    .work-row__actions {
+        justify-content: flex-start;
+    }
+}

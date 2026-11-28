@@ -1,0 +1,457 @@
+.planning-heading,
+.section-heading,
+.plan-card__top,
+.danger-panel {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem 1.5rem;
+}
+
+.planning-heading {
+    margin-block-end: 1.5rem;
+}
+
+.workspace-banner {
+    padding: clamp(1rem, 2.2vw, 1.5rem);
+    border: 1px solid #d8e4fa;
+    border-radius: var(--radius);
+    background: radial-gradient(ellipse at 96% 0%, #dae7ff, transparent 60%), #f5f8ff;
+}
+
+.page-content .workspace-banner h1 {
+    margin: 0;
+    font-size: clamp(1.75rem, 3vw, 2.25rem);
+}
+
+.workspace-banner h1 + p {
+    margin-top: 0.375rem;
+}
+
+.planning-heading > div,
+.section-heading > div {
+    min-width: 0;
+}
+
+.planning-heading h1,
+.section-heading h2 {
+    margin-block: 0;
+}
+
+.planning-heading p {
+    margin: 0.375rem 0 0;
+    color: var(--muted);
+}
+
+.planning-heading .item-meta {
+    margin: 0 0 0.375rem;
+}
+
+.back-link,
+.planning-breadcrumb {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.375rem 0.625rem;
+    margin-block-end: 1.125rem;
+    font-size: 0.875rem;
+}
+
+.planning-breadcrumb a + a::before {
+    display: inline-block;
+    margin-inline-end: 0.625rem;
+    color: var(--muted);
+    content: "/";
+}
+
+.planning-panel,
+.plan-card,
+.empty-panel {
+    min-width: 0;
+    padding: clamp(1rem, 2.5vw, 1.5rem);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.empty-panel {
+    padding-block: clamp(1.75rem, 6vw, 3.75rem);
+    border-style: dashed;
+    text-align: center;
+}
+
+.empty-panel p,
+.planning-state,
+.muted {
+    color: var(--muted);
+}
+
+.empty-panel p {
+    max-width: 40ch;
+    margin: 0.375rem auto 0;
+}
+
+.planning-panel h2,
+.empty-panel h2,
+.danger-panel h2,
+.warning-panel h2 {
+    margin: 0 0 0.75rem;
+}
+
+.section-heading h2,
+.empty-panel h2 {
+    margin-bottom: 0;
+}
+
+.planning-panel h3 {
+    margin: 1.25rem 0 0.375rem;
+    font-size: 0.9375rem;
+}
+
+.planning-panel h3 + p {
+    margin: 0;
+}
+
+.planning-grid,
+.planning-stack {
+    display: grid;
+    align-items: start;
+    gap: 1rem;
+}
+
+.planning-grid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+}
+
+.planning-actions,
+.form-actions,
+.plan-card__links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.625rem 1rem;
+}
+
+.plan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 21rem), 1fr));
+    gap: 1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.plan-card {
+    display: flex;
+    flex-direction: column;
+    border-top: 3px solid var(--accent);
+}
+
+.plan-card__top .button,
+.branch-row .button {
+    font-size: 0.875rem;
+}
+
+.plan-card h2 {
+    margin: 0.625rem 0 0.375rem;
+    font-size: 1.375rem;
+}
+
+.item-title {
+    color: var(--ink);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.item-title:hover {
+    text-decoration: underline;
+}
+
+.plan-card__goal,
+.preserve-lines {
+    white-space: pre-wrap;
+}
+
+.plan-card__goal {
+    display: -webkit-box;
+    overflow: hidden;
+    margin: 0 0 0.5rem;
+    color: var(--muted);
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+
+.plan-card__links {
+    margin-top: 1rem;
+    padding-top: 0.875rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.875rem;
+    font-weight: 650;
+}
+
+.page-content .metadata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.5rem;
+    max-width: none;
+    margin: 1rem 0 0;
+    padding: 0.875rem;
+    background: var(--surface-muted);
+}
+
+.page-content .metadata--compact {
+    margin: auto 0 0.875rem;
+    padding: 0.75rem;
+    border: 0;
+}
+
+.metadata dt,
+.item-meta {
+    color: var(--muted);
+    font-size: 0.8125rem;
+}
+
+.page-content .metadata dd {
+    margin: 0.125rem 0 0;
+    color: var(--ink);
+    font-size: 0.875rem;
+}
+
+.node-progress {
+    display: grid;
+    align-content: start;
+    gap: 0.375rem;
+    color: var(--muted);
+    font-size: 0.875rem;
+}
+
+.node-progress--available {
+    color: var(--success);
+    font-weight: 650;
+}
+
+.node-progress progress {
+    width: 100%;
+    height: 0.5rem;
+    appearance: none;
+    border: 0;
+    border-radius: 1rem;
+    background: var(--line);
+    color: var(--success);
+}
+
+.node-progress progress::-webkit-progress-bar {
+    border-radius: 1rem;
+    background: var(--line);
+}
+
+.node-progress progress::-webkit-progress-value {
+    border-radius: 1rem;
+    background: var(--success);
+}
+
+.node-progress progress::-moz-progress-bar {
+    border-radius: 1rem;
+    background: var(--success);
+}
+
+.plan-picker {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 0.75rem;
+    margin-block-end: 1rem;
+}
+
+.plan-picker .field {
+    min-width: 0;
+    width: min(100%, 27rem);
+}
+
+.plan-picker select {
+    display: block;
+    width: 100%;
+    margin-top: 0.375rem;
+}
+
+.branch-panel {
+    container-type: inline-size;
+}
+
+.branch-panel .section-heading {
+    margin-bottom: 1rem;
+}
+
+.branch-list,
+.direct-children {
+    display: grid;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.branch-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    padding: 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    background: var(--surface-muted);
+}
+
+.branch-row .item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+    margin: 0.25rem 0 0;
+}
+
+.item-dates {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.branch-children {
+    margin-inline-start: clamp(0.375rem, 1.5vw, 1rem);
+    padding-inline-start: clamp(0.375rem, 1.5vw, 1rem);
+    border-inline-start: 1px solid var(--line);
+}
+
+.branch-children summary {
+    width: fit-content;
+    padding-block: 0.375rem;
+    color: var(--accent-hover);
+    font-size: 0.875rem;
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.branch-children summary span {
+    padding-inline-start: 0.25rem;
+    color: var(--muted);
+}
+
+.direct-children {
+    margin-block: 0.5rem 1rem;
+}
+
+.direct-children a {
+    display: block;
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.5rem;
+    background: var(--surface-muted);
+}
+
+.warning-panel,
+.danger-panel {
+    padding: 1rem;
+    border: 1px solid;
+    border-radius: var(--radius);
+}
+
+.warning-panel {
+    margin-bottom: 1rem;
+    border-color: #e7c88f;
+    color: #704914;
+    background: #fff7e8;
+}
+
+.warning-panel ul {
+    margin: 0;
+    padding-inline-start: 1.25rem;
+}
+
+.danger-panel {
+    margin-top: 1rem;
+    border-color: #e7b9bf;
+    background: var(--danger-soft);
+}
+
+.danger-panel > div {
+    flex: 1 1 20rem;
+}
+
+.danger-panel h2 {
+    margin-bottom: 0.25rem;
+    color: var(--danger);
+}
+
+.danger-panel p {
+    margin: 0;
+}
+
+.page-content--form .planning-form,
+.form-errors {
+    max-width: 42rem;
+}
+
+.planning-form {
+    display: grid;
+    gap: 1.125rem;
+}
+
+.date-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.field--number {
+    max-width: 10rem;
+}
+
+.field-help,
+.field-error {
+    margin: 0.375rem 0 0;
+    font-size: 0.875rem;
+}
+
+.planning-form > .field-help {
+    margin-top: -0.75rem;
+}
+
+.field-help {
+    color: var(--muted);
+}
+
+.field-error {
+    color: var(--danger);
+}
+
+.page-content [aria-invalid="true"] {
+    border-color: var(--danger);
+}
+
+.form-actions {
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
+}
+
+@media (max-width: 64rem) {
+    .planning-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 40rem) {
+    .date-fields {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@container (max-width: 33rem) {
+    .branch-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .branch-row .node-progress {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+}
