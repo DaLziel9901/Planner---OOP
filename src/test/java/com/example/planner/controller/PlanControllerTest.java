@@ -22,7 +22,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 // Mô phỏng HTTP; service giả. Không render Thymeleaf hoặc chạy PostgreSQL.
-class PlanControllerTest {
+class PlanControllerTest extends AuthenticatedControllerTest {
     private PlanService service;
     private MockMvc mvc;
     private com.example.planner.service.PlanTreeService trees;
@@ -31,8 +31,8 @@ class PlanControllerTest {
     void setUp() {
         service = mock(PlanService.class);
         trees=mock(com.example.planner.service.PlanTreeService.class);
-        when(trees.loadPlan(anyLong())).thenThrow(new DataAccessResourceFailureException("Tree unavailable"));
-        when(trees.loadPlans()).thenThrow(new DataAccessResourceFailureException("Tree unavailable"));
+        when(trees.loadPlan(eq(OWNER_ID), anyLong())).thenThrow(new DataAccessResourceFailureException("Tree unavailable"));
+        when(trees.loadPlans(OWNER_ID)).thenThrow(new DataAccessResourceFailureException("Tree unavailable"));
         // Chỉ chuyển tiếp tới đường dẫn giả để kiểm tra tên view/model.
         InternalResourceViewResolver views = new InternalResourceViewResolver();
         views.setPrefix("/test-views/");
@@ -42,10 +42,22 @@ class PlanControllerTest {
     }
 
     @Test
+    void submittedOwnerCannotOverridePrincipalAndMissingPrincipalStopsReads() throws Exception {
+        mvc.perform(get("/plans").param("ownerId", "99")).andExpect(status().isOk());
+        verify(service).findAll(OWNER_ID);
+        verify(trees).loadPlans(OWNER_ID);
+        clearInvocations(service, trees);
+
+        clearPrincipal();
+        mvc.perform(get("/plans").param("ownerId", "42")).andExpect(status().isForbidden());
+        verifyNoInteractions(service, trees);
+    }
+
+    @Test
     void listAndDetailExposeDataWithoutClaimingProgressIsLoaded() throws Exception {
         Plan plan = new Plan("TOEIC");
-        when(service.findAll()).thenReturn(List.of(plan));
-        when(service.getById(1L)).thenReturn(plan);
+        when(service.findAll(OWNER_ID)).thenReturn(List.of(plan));
+        when(service.getById(OWNER_ID, 1L)).thenReturn(plan);
         mvc.perform(get("/plans")).andExpect(status().isOk())
                 .andExpect(view().name("plans/list"))
                 .andExpect(model().attribute("plans", List.of(plan)))
@@ -67,7 +79,7 @@ class PlanControllerTest {
                 .andExpect(model().attribute("form", Map.of("title", "", "goal", "", "startDate", "", "endDate", "")));
         Plan plan = new Plan("TOEIC");
         plan.setDates(LocalDate.of(2026, 11, 1), null);
-        when(service.getById(1L)).thenReturn(plan);
+        when(service.getById(OWNER_ID, 1L)).thenReturn(plan);
         mvc.perform(get("/plans/1/edit")).andExpect(status().isOk())
                 .andExpect(view().name("plans/form"))
                 .andExpect(model().attribute("editing", true))
@@ -77,13 +89,13 @@ class PlanControllerTest {
 
     @Test
     void createRedirectsToGeneratedIdAndIgnoresForgedFields() throws Exception {
-        when(service.create("TOEIC", "", null, null)).thenReturn(12L);
+        when(service.create(OWNER_ID, "TOEIC", "", null, null)).thenReturn(12L);
         mvc.perform(post("/plans").param("title", "TOEIC")
                         .param("id", "999").param("createdAt", "fake"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/plans/12"))
                 .andExpect(flash().attribute("message", "Đã tạo kế hoạch"));
-        verify(service).create("TOEIC", "", null, null);
+        verify(service).create(OWNER_ID, "TOEIC", "", null, null);
     }
 
     @Test
@@ -109,28 +121,28 @@ class PlanControllerTest {
 
     @Test
     void updateUsesUrlIdAndParsesDates() throws Exception {
-        when(service.getById(1L)).thenReturn(new Plan("Cũ"));
+        when(service.getById(OWNER_ID, 1L)).thenReturn(new Plan("Cũ"));
         mvc.perform(post("/plans/1/edit").param("id", "999")
                         .param("title", "Mới").param("goal", "730+")
                         .param("startDate", "2026-11-01").param("endDate", "2026-11-02"))
                 .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/plans/1"));
-        verify(service).update(1L, "Mới", "730+", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 2));
+        verify(service).update(OWNER_ID, 1L, "Mới", "730+", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 2));
     }
 
     @Test
     void invalidUpdateKeepsEditFormAndDoesNotWrite() throws Exception {
-        when(service.getById(1L)).thenReturn(new Plan("Cũ"));
+        when(service.getById(OWNER_ID, 1L)).thenReturn(new Plan("Cũ"));
         mvc.perform(post("/plans/1/edit").param("title", " "))
                 .andExpect(view().name("plans/form"))
                 .andExpect(model().attribute("editing", true))
                 .andExpect(model().attribute("formAction", "/plans/1/edit"));
-        verify(service, never()).update(anyLong(), anyString(), anyString(), any(), any());
+        verify(service, never()).update(eq(OWNER_ID), anyLong(), anyString(), anyString(), any(), any());
     }
 
     @Test
     void missingIdsAre404ForDetailEditUpdateAndDelete() throws Exception {
-        when(service.getById(99L)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
-        doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND)).when(service).delete(99L);
+        when(service.getById(OWNER_ID, 99L)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
+        doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND)).when(service).delete(OWNER_ID, 99L);
         mvc.perform(get("/plans/99")).andExpect(status().isNotFound());
         mvc.perform(get("/plans/99/edit")).andExpect(status().isNotFound());
         mvc.perform(post("/plans/99/edit").param("title", " ")).andExpect(status().isNotFound());
@@ -143,12 +155,12 @@ class PlanControllerTest {
         verifyNoInteractions(service);
         mvc.perform(post("/plans/1/delete"))
                 .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/plans"));
-        verify(service).delete(1L);
+        verify(service).delete(OWNER_ID, 1L);
     }
 
     @Test
     void databaseFailureIsNotDisguisedAsFormValidation() {
-        when(service.create("TOEIC", "", null, null))
+        when(service.create(OWNER_ID, "TOEIC", "", null, null))
                 .thenThrow(new DataAccessResourceFailureException("DB unavailable"));
         ServletException exception = assertThrows(ServletException.class,
                 () -> mvc.perform(post("/plans").param("title", "TOEIC")));

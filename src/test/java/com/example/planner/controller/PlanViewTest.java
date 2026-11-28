@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 // Render Thymeleaf thật với service giả, không tải Boot hoặc kết nối DB.
 @SpringJUnitWebConfig(PlanViewTest.Config.class)
-class PlanViewTest {
+class PlanViewTest extends AuthenticatedControllerTest {
     @Autowired WebApplicationContext context;
     @Autowired PlanService service;
     @Autowired PlanTreeService trees;
@@ -62,12 +62,12 @@ class PlanViewTest {
     @BeforeEach
     void setUp() {
         reset(service,trees);
-        when(trees.loadPlan(anyLong())).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("Tree unavailable"));
-        when(trees.loadPlans()).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("Tree unavailable"));
+        when(trees.loadPlan(eq(OWNER_ID), anyLong())).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("Tree unavailable"));
+        when(trees.loadPlans(OWNER_ID)).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("Tree unavailable"));
         mvc = MockMvcBuilders.webAppContextSetup(context).build();
         plan = new Plan(1L, "TOEIC", null, null, null, OffsetDateTime.parse("2026-11-01T00:00:00Z"));
-        when(service.getById(1L)).thenReturn(plan);
-        when(service.findAll()).thenReturn(List.of(plan));
+        when(service.getById(OWNER_ID, 1L)).thenReturn(plan);
+        when(service.findAll(OWNER_ID)).thenReturn(List.of(plan));
     }
 
     @Test
@@ -78,7 +78,7 @@ class PlanViewTest {
                 .andExpect(content().string(containsString("/tasks?planId=1")))
                 .andExpect(content().string(containsString("href=\"/tasks\"")))
                 .andExpect(content().string(containsString("TOEIC")));
-        when(service.findAll()).thenReturn(List.of());
+        when(service.findAll(OWNER_ID)).thenReturn(List.of());
         mvc.perform(get("/plans")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("Chưa có kế hoạch")));
     }
@@ -107,7 +107,7 @@ class PlanViewTest {
                 .andExpect(content().string(containsString("value=\"abc\"")))
                 .andExpect(content().string(containsString("&lt;script&gt;")))
                 .andExpect(content().string(not(containsString("<script>"))));
-        verify(service, never()).create(any(), any(), any(), any());
+        verify(service, never()).create(eq(OWNER_ID), any(), any(), any(), any());
     }
 
     @Test
@@ -118,7 +118,7 @@ class PlanViewTest {
                 .andExpect(content().string(containsString("action=\"/plans/1/edit\"")))
                 .andExpect(content().string(containsString("Ngày kết thúc không được trước ngày bắt đầu")))
                 .andExpect(content().string(containsString("value=\"Tên mới\"")));
-        verify(service, never()).update(anyLong(), any(), any(), any(), any());
+        verify(service, never()).update(eq(OWNER_ID), anyLong(), any(), any(), any(), any());
     }
 
     @Test
@@ -136,7 +136,7 @@ class PlanViewTest {
 
     @Test
     void successfulCreateRedirectsAndDetailDisplaysFlashMessage() throws Exception {
-        when(service.create("TOEIC", "", null, null)).thenReturn(1L);
+        when(service.create(OWNER_ID, "TOEIC", "", null, null)).thenReturn(1L);
         mvc.perform(post("/plans").param("title", "TOEIC"))
                 .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/plans/1"))
                 .andExpect(flash().attribute("message", "Đã tạo kế hoạch"));
@@ -145,7 +145,7 @@ class PlanViewTest {
     }
 
     @Test void loadedEmptyDoesNotDisplayAnyPercentage() throws Exception {
-        doReturn(new PlanTreeService.PlanSnapshot(plan,List.of())).when(trees).loadPlan(1);
+        doReturn(new PlanTreeService.PlanSnapshot(plan,List.of())).when(trees).loadPlan(OWNER_ID, 1);
         mvc.perform(get("/plans/1")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("Chưa có công việc")))
                 .andExpect(content().string(not(containsString("0%"))));
@@ -155,15 +155,15 @@ class PlanViewTest {
         var task=new com.example.planner.model.Task(11L,1L,null,"Task",null,null,null,0,OffsetDateTime.now());
         for(long i=1;i<=3;i++) task.addSubTask(new com.example.planner.model.SubTask(i,11L,"Leaf",null,null,i==1,i==1?OffsetDateTime.now():null,0,OffsetDateTime.now()));
         loaded.addTask(task);
-        doReturn(new PlanTreeService.PlanSnapshot(loaded,List.of())).when(trees).loadPlan(1);
-        doReturn(List.of(loaded)).when(trees).loadPlans();
+        doReturn(new PlanTreeService.PlanSnapshot(loaded,List.of())).when(trees).loadPlan(OWNER_ID, 1);
+        doReturn(List.of(loaded)).when(trees).loadPlans(OWNER_ID);
         mvc.perform(get("/plans/1")).andExpect(status().isOk()).andExpect(content().string(containsString("1/3 SubTask — 33,33%")));
         mvc.perform(get("/plans")).andExpect(status().isOk()).andExpect(content().string(containsString("1/3 SubTask — 33,33%")));
     }
 
     @Test
     void missingIdIs404InsteadOfAttemptingToRenderDetail() throws Exception {
-        when(service.getById(99L)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
+        when(service.getById(OWNER_ID, 99L)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
         mvc.perform(get("/plans/99")).andExpect(status().isNotFound());
     }
 }

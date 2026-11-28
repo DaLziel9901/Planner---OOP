@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringJUnitWebConfig(TaskViewTest.Config.class)
-class TaskViewTest {
+class TaskViewTest extends AuthenticatedControllerTest {
     @Autowired WebApplicationContext context;
     @Autowired TaskService service;
     @Autowired PlanService plans;
@@ -55,18 +55,18 @@ class TaskViewTest {
 
     @BeforeEach void setUp() {
         reset(service, plans, subPlans, trees); mvc = MockMvcBuilders.webAppContextSetup(context).build();
-        when(trees.loadTask(anyLong())).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("Tree unavailable"));
-        when(trees.loadTasks(any(),any())).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("Tree unavailable"));
+        when(trees.loadTask(eq(OWNER_ID), anyLong())).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("Tree unavailable"));
+        when(trees.loadTasks(eq(OWNER_ID), any(),any())).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("Tree unavailable"));
         task = new Task(7L, null, null, "Task <script>x</script>", "<b>Nội dung</b>", null, null, 0,
                 OffsetDateTime.parse("2026-11-16T00:00:00Z"));
-        when(service.getById(7)).thenReturn(task); when(service.findIndependent()).thenReturn(List.of(task));
+        when(service.getById(OWNER_ID, 7)).thenReturn(task); when(service.findIndependent(OWNER_ID)).thenReturn(List.of(task));
     }
 
     @Test void createChoosesParentAndInvalidSelectionRemainsVisible() throws Exception {
         Plan plan = new Plan(1L,"Plan cha",null,null,null,OffsetDateTime.now());
         SubPlan sub = new SubPlan(2L,1L,null,"Sub cha",null,null,null,0,OffsetDateTime.now());
-        when(plans.findAll()).thenReturn(List.of(plan)); when(plans.getById(1)).thenReturn(plan);
-        when(subPlans.findByPlanId(1)).thenReturn(List.of(sub)); when(subPlans.getById(2)).thenReturn(sub);
+        when(plans.findAll(OWNER_ID)).thenReturn(List.of(plan)); when(plans.getById(OWNER_ID, 1)).thenReturn(plan);
+        when(subPlans.findByPlanId(OWNER_ID, 1)).thenReturn(List.of(sub)); when(subPlans.getById(OWNER_ID, 2)).thenReturn(sub);
         mvc.perform(get("/tasks/new").param("subPlanId","2")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("name=\"planId\"")))
                 .andExpect(content().string(containsString("name=\"subPlanId\"")))
@@ -77,7 +77,7 @@ class TaskViewTest {
     }
 
     @Test void attachedTaskDetailLinksToActualParentAndEditHasNoLocationControls() throws Exception {
-        task.setLocation(1L,null); when(plans.getById(1)).thenReturn(new Plan("Plan cha"));
+        task.setLocation(1L,null); when(plans.getById(OWNER_ID, 1)).thenReturn(new Plan("Plan cha"));
         mvc.perform(get("/tasks/7")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("href=\"/plans/1\"")))
                 .andExpect(content().string(containsString("/tasks?planId=1")))
@@ -93,7 +93,7 @@ class TaskViewTest {
                 .andExpect(content().string(containsString("href=\"/tasks/7\"")))
                 .andExpect(content().string(containsString("&lt;script&gt;")))
                 .andExpect(content().string(not(containsString("<script>"))));
-        when(service.findIndependent()).thenReturn(List.of());
+        when(service.findIndependent(OWNER_ID)).thenReturn(List.of());
         mvc.perform(get("/tasks")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("Chưa có Task độc lập")));
     }
@@ -119,7 +119,7 @@ class TaskViewTest {
                 .andExpect(content().string(containsString("&lt;img src=x&gt;")))
                 .andExpect(content().string(containsString("&lt;script&gt;bad&lt;/script&gt;")))
                 .andExpect(content().string(containsString("role=\"alert\"")));
-        verify(service, never()).create(any(),any(),any(),any(),anyInt());
+        verify(service, never()).create(eq(OWNER_ID), any(),any(),any(),any(),anyInt());
     }
 
     @Test void detailShowsFlashConfirmationAndUnavailableProgress() throws Exception {
@@ -135,7 +135,7 @@ class TaskViewTest {
     }
 
     @Test void createAndEditFlashRenderAtRedirectDestination() throws Exception {
-        when(service.create("Tên", "", null, null, 0)).thenReturn(7L);
+        when(service.create(OWNER_ID, "Tên", "", null, null, 0)).thenReturn(7L);
         var created = mvc.perform(post("/tasks").param("title", "Tên"))
                 .andExpect(redirectedUrl("/tasks/7")).andReturn();
         mvc.perform(get("/tasks/7").flashAttrs(created.getFlashMap())).andExpect(status().isOk())
@@ -149,7 +149,7 @@ class TaskViewTest {
     @Test void taskDetailListsEscapedLeavesWithLoadedProgress() throws Exception {
         var leaf=new SubTask(9L,7L,"Lá <script>x</script>",null,null,false,null,0,OffsetDateTime.now());
         Task loaded=new Task(7L,null,null,task.getTitle(),task.getDescription(),null,null,0,task.getCreatedAt()); loaded.addSubTask(leaf);
-        doReturn(new PlanTreeService.TaskSnapshot(loaded,null,null)).when(trees).loadTask(7);
+        doReturn(new PlanTreeService.TaskSnapshot(loaded,null,null)).when(trees).loadTask(OWNER_ID, 7);
         mvc.perform(get("/tasks/7")).andExpect(status().isOk())
                 .andExpect(model().attribute("subTasks",List.of(leaf)))
                 .andExpect(content().string(containsString("href=\"/subtasks/9\"")))

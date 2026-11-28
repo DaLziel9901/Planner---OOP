@@ -32,11 +32,12 @@ public class TaskController {
     }
     @GetMapping
     public String list(@RequestParam Map<String,String> params, Model model) {
+        long ownerId = RequestOwner.require();
         Location location = requestLocation(params);
         locationContext(location, model);
-        List<Task> main=ProgressReadSupport.primary(()->location.planId()!=null ? service.findByPlanId(location.planId())
-                : location.subPlanId()!=null ? service.findBySubPlanId(location.subPlanId()) : service.findIndependent());
-        var snapshot=ProgressReadSupport.tree(()->trees.loadTasks(location.planId(),location.subPlanId()));
+        List<Task> main=ProgressReadSupport.primary(()->location.planId()!=null ? service.findByPlanId(ownerId, location.planId())
+                : location.subPlanId()!=null ? service.findBySubPlanId(ownerId, location.subPlanId()) : service.findIndependent(ownerId));
+        var snapshot=ProgressReadSupport.tree(()->trees.loadTasks(ownerId, location.planId(),location.subPlanId()));
         List<Task> displayed=snapshot.map(PlanTreeService.TaskListSnapshot::tasks).orElse(main);
         snapshot.ifPresent(s->setLocationContext(location,s.plan(),s.subPlan(),model));
         model.addAttribute("tasks",displayed);
@@ -55,9 +56,10 @@ public class TaskController {
 
     @GetMapping("/{id}")
     public String detail(@PathVariable("id") long id, Model model) {
-        Task task = ProgressReadSupport.primary(()->service.getById(id));
+        long ownerId = RequestOwner.require();
+        Task task = ProgressReadSupport.primary(()->service.getById(ownerId, id));
         locationContext(new Location(task.getPlanId(), task.getSubPlanId()), model);
-        var snapshot=ProgressReadSupport.tree(()->trees.loadTask(id));
+        var snapshot=ProgressReadSupport.tree(()->trees.loadTask(ownerId, id));
         Task displayed=snapshot.map(PlanTreeService.TaskSnapshot::task).orElse(task);
         snapshot.ifPresent(s->setLocationContext(new Location(displayed.getPlanId(),displayed.getSubPlanId()),s.plan(),s.subPlan(),model));
         model.addAttribute("task",displayed);
@@ -69,7 +71,8 @@ public class TaskController {
 
     @GetMapping("/{id}/edit")
     public String edit(@PathVariable("id") long id, Model model) {
-        Task task = service.getById(id);
+        long ownerId = RequestOwner.require();
+        Task task = service.getById(ownerId, id);
         locationContext(new Location(task.getPlanId(), task.getSubPlanId()), model);
         Map<String,String> form = new LinkedHashMap<>();
         form.put("title", task.getTitle()); form.put("description", text(task.getDescription()));
@@ -86,20 +89,23 @@ public class TaskController {
     @PostMapping("/{id}/edit")
     public String update(@PathVariable("id") long id, @RequestParam Map<String,String> params,
                          Model model, RedirectAttributes flash) {
-        Task task = service.getById(id); // ID thiếu vẫn 404 ngay cả khi form sai.
+        long ownerId = RequestOwner.require();
+        Task task = service.getById(ownerId, id); // ID thiếu vẫn 404 ngay cả khi form sai.
         locationContext(new Location(task.getPlanId(), task.getSubPlanId()), model);
         return save(id, params, model, flash);
     }
 
     @PostMapping("/{id}/delete")
     public String delete(@PathVariable("id") long id, RedirectAttributes flash) {
-        Task task = service.getById(id);
-        service.delete(id);
+        long ownerId = RequestOwner.require();
+        Task task = service.getById(ownerId, id);
+        service.delete(ownerId, id);
         flash.addFlashAttribute("message", "Đã xóa Task và toàn bộ SubTask bên dưới");
         return "redirect:" + listUrl(new Location(task.getPlanId(), task.getSubPlanId()));
     }
 
     private String save(Long id, Map<String,String> params, Model model, RedirectAttributes flash) {
+        long ownerId = RequestOwner.require();
         Map<String,String> form = readForm(params);
         Map<String,String> errors = new LinkedHashMap<>();
         Location location = new Location(null, null);
@@ -125,11 +131,11 @@ public class TaskController {
         long savedId;
         if (id == null) {
             savedId = location.planId() == null && location.subPlanId() == null
-                    ? service.create(title, form.get("description"), start, end, order)
-                    : service.create(location.planId(), location.subPlanId(), title, form.get("description"), start, end, order);
+                    ? service.create(ownerId, title, form.get("description"), start, end, order)
+                    : service.create(ownerId, location.planId(), location.subPlanId(), title, form.get("description"), start, end, order);
         }
         else {
-            service.update(id, title, form.get("description"), start, end, order);
+            service.update(ownerId, id, title, form.get("description"), start, end, order);
             savedId = id;
         }
         flash.addFlashAttribute("message", id == null ? "Đã tạo Task" : "Đã cập nhật Task");
@@ -153,12 +159,13 @@ public class TaskController {
     }
 
     private String prepareForm(Long id, Map<String,String> form, Map<String,String> errors, Model model) {
+        long ownerId = RequestOwner.require();
         model.addAttribute("form", form); model.addAttribute("errors", errors);
         model.addAttribute("editing", id != null);
         model.addAttribute("formAction", id == null ? "/tasks" : "/tasks/" + id + "/edit");
         if (id == null) {
-            List<Plan> choices = plans.findAll();
-            List<SubPlan> subChoices = choices.stream().flatMap(plan -> subPlans.findByPlanId(plan.getId()).stream()).toList();
+            List<Plan> choices = plans.findAll(ownerId);
+            List<SubPlan> subChoices = choices.stream().flatMap(plan -> subPlans.findByPlanId(ownerId, plan.getId()).stream()).toList();
             model.addAttribute("plans", choices); model.addAttribute("subPlans", subChoices);
             @SuppressWarnings("unchecked")
             Map<String,String> selected = (Map<String,String>) model.getAttribute("locationForm");
@@ -205,8 +212,9 @@ public class TaskController {
     }
 
     private void locationContext(Location location, Model model) {
-        Plan plan=location.planId()==null?null:ProgressReadSupport.primary(()->plans.getById(location.planId()));
-        SubPlan sub=location.subPlanId()==null?null:ProgressReadSupport.primary(()->subPlans.getById(location.subPlanId()));
+        long ownerId = RequestOwner.require();
+        Plan plan=location.planId()==null?null:ProgressReadSupport.primary(()->plans.getById(ownerId, location.planId()));
+        SubPlan sub=location.subPlanId()==null?null:ProgressReadSupport.primary(()->subPlans.getById(ownerId, location.subPlanId()));
         setLocationContext(location,plan,sub,model);
     }
     private void setLocationContext(Location location,Plan plan,SubPlan sub,Model model) {

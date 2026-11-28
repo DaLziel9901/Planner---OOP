@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 // Không chạy Boot/DB. Render template thật bằng Thymeleaf để bắt lỗi HTML/expression.
 @SpringJUnitWebConfig(SubPlanControllerTest.Config.class)
-class SubPlanControllerTest {
+class SubPlanControllerTest extends AuthenticatedControllerTest {
     @Autowired WebApplicationContext context;
     @Autowired SubPlanService service;
     @Autowired PlanService plans;
@@ -66,17 +66,17 @@ class SubPlanControllerTest {
     @BeforeEach
     void setUp() {
         reset(service, plans,trees);
-        when(trees.loadPlan(anyLong())).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("Tree unavailable"));
-        when(trees.loadSubPlan(anyLong())).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("Tree unavailable"));
+        when(trees.loadPlan(eq(OWNER_ID), anyLong())).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("Tree unavailable"));
+        when(trees.loadSubPlan(eq(OWNER_ID), anyLong())).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("Tree unavailable"));
         mvc = MockMvcBuilders.webAppContextSetup(context).build();
         Plan plan = new Plan(1L, "TOEIC", null, null, null, OffsetDateTime.now());
         current = new SubPlan(2L, 1L, null, "Giai đoạn", null, null, null, 0, OffsetDateTime.now());
-        when(plans.findAll()).thenReturn(List.of(plan));
-        when(service.getPlan(1L)).thenReturn(plan);
-        when(service.findByPlanId(1L)).thenReturn(List.of(current));
-        when(service.getById(2L)).thenReturn(current);
-        when(service.getDirectChildren(current)).thenReturn(List.of());
-        when(service.getDateWarnings(current)).thenReturn(List.of("Cảnh báo ngày"));
+        when(plans.findAll(OWNER_ID)).thenReturn(List.of(plan));
+        when(service.getPlan(OWNER_ID, 1L)).thenReturn(plan);
+        when(service.findByPlanId(OWNER_ID, 1L)).thenReturn(List.of(current));
+        when(service.getById(OWNER_ID, 2L)).thenReturn(current);
+        when(service.getDirectChildren(OWNER_ID, current)).thenReturn(List.of());
+        when(service.getDateWarnings(OWNER_ID, current)).thenReturn(List.of("Cảnh báo ngày"));
     }
 
     @Test
@@ -91,12 +91,12 @@ class SubPlanControllerTest {
     void listRendersEveryLevelAndDetailUsesDirectChildren() throws Exception {
         var child = new SubPlan(3L, 1L, 2L, "Con trực tiếp", null, null, null, 0, OffsetDateTime.now());
         var grandchild = new SubPlan(4L, 1L, 3L, "Cháu sâu", null, null, null, 0, OffsetDateTime.now());
-        when(service.findByPlanId(1L)).thenReturn(List.of(current, child, grandchild));
-        when(service.getDirectChildren(current)).thenReturn(List.of(child));
+        when(service.findByPlanId(OWNER_ID, 1L)).thenReturn(List.of(current, child, grandchild));
+        when(service.getDirectChildren(OWNER_ID, current)).thenReturn(List.of(child));
         var loaded=new SubPlan(2L,1L,null,current.getTitle(),null,null,null,0,OffsetDateTime.now());
         child.addSubPlan(grandchild); loaded.addSubPlan(child);
         var root=new Plan(1L,"TOEIC",null,null,null,OffsetDateTime.now()); root.addSubPlan(loaded);
-        doReturn(new PlanTreeService.SubPlanSnapshot(root,loaded,List.of(loaded,child,grandchild))).when(trees).loadSubPlan(2);
+        doReturn(new PlanTreeService.SubPlanSnapshot(root,loaded,List.of(loaded,child,grandchild))).when(trees).loadSubPlan(OWNER_ID, 2);
         mvc.perform(get("/subplans").param("planId", "1"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Con trực tiếp")))
@@ -126,7 +126,7 @@ class SubPlanControllerTest {
 
     @Test
     void createsAndRedirects() throws Exception {
-        when(service.create(1L, null, "Tên", "", null, null, 0)).thenReturn(3L);
+        when(service.create(OWNER_ID, 1L, null, "Tên", "", null, null, 0)).thenReturn(3L);
         mvc.perform(post("/subplans").param("planId", "1").param("title", "Tên"))
                 .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/subplans/3"));
     }
@@ -138,12 +138,12 @@ class SubPlanControllerTest {
                 .andExpect(status().isOk()).andExpect(view().name("subplans/form"))
                 .andExpect(content().string(containsString("value=\"abc\"")))
                 .andExpect(content().string(containsString("Giá trị đã gửi: bad")));
-        verify(service, never()).create(anyLong(), any(), anyString(), anyString(), any(), any(), anyInt());
+        verify(service, never()).create(eq(OWNER_ID), anyLong(), any(), anyString(), anyString(), any(), any(), anyInt());
     }
 
     @Test
     void businessErrorsAppearOnFormAndCanBeCorrected() throws Exception {
-        when(service.create(1L, 2L, "Tên", "", null, null, 0))
+        when(service.create(OWNER_ID, 1L, 2L, "Tên", "", null, null, 0))
                 .thenThrow(new SubPlanService.InputException("parentSubPlanId", "Vượt 5 tầng"));
         mvc.perform(post("/subplans").param("planId", "1").param("parentSubPlanId", "2").param("title", "Tên"))
                 .andExpect(status().isOk()).andExpect(content().string(containsString("Vượt 5 tầng")));
@@ -153,17 +153,17 @@ class SubPlanControllerTest {
     void updateKeepsOriginalPlanDespiteForgedFormPlanId() throws Exception {
         mvc.perform(post("/subplans/2/edit").param("planId", "999").param("title", "Mới"))
                 .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/subplans/2"));
-        verify(service).update(2L, null, "Mới", "", null, null, 0);
+        verify(service).update(OWNER_ID, 2L, null, "Mới", "", null, null, 0);
     }
 
     @Test
     void missingIdsReturn404AndGetCannotDelete() throws Exception {
-        when(service.getById(99L)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
+        when(service.getById(OWNER_ID, 99L)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
         mvc.perform(get("/subplans/99")).andExpect(status().isNotFound());
         mvc.perform(post("/subplans/99/edit")).andExpect(status().isNotFound());
         mvc.perform(get("/subplans/2/delete")).andExpect(status().isMethodNotAllowed());
-        verify(service, never()).delete(anyLong());
-        when(service.delete(2L)).thenReturn(1L);
+        verify(service, never()).delete(eq(OWNER_ID), anyLong());
+        when(service.delete(OWNER_ID, 2L)).thenReturn(1L);
         mvc.perform(post("/subplans/2/delete")).andExpect(redirectedUrl("/subplans?planId=1"));
     }
 
@@ -177,11 +177,11 @@ class SubPlanControllerTest {
         var task=new com.example.planner.model.Task(11L,null,6L,"Task",null,null,null,0,OffsetDateTime.now());
         task.addSubTask(new com.example.planner.model.SubTask(12L,11L,"Leaf",null,null,true,OffsetDateTime.now(),0,OffsetDateTime.now()));
         node.addTask(task); root.addSubPlan(all.get(0));
-        doReturn(new PlanTreeService.SubPlanSnapshot(root,all.get(0),all)).when(trees).loadSubPlan(2);
-        doReturn(new PlanTreeService.PlanSnapshot(root,all)).when(trees).loadPlan(1);
+        doReturn(new PlanTreeService.SubPlanSnapshot(root,all.get(0),all)).when(trees).loadSubPlan(OWNER_ID, 2);
+        doReturn(new PlanTreeService.PlanSnapshot(root,all)).when(trees).loadPlan(OWNER_ID, 1);
         mvc.perform(get("/subplans/2")).andExpect(status().isOk()).andExpect(content().string(containsString("1/1 SubTask — 100%")));
         mvc.perform(get("/subplans").param("planId","1")).andExpect(status().isOk()).andExpect(content().string(containsString("Tầng 5")));
-        doReturn(new PlanTreeService.SubPlanSnapshot(root,current,List.of(current))).when(trees).loadSubPlan(2);
+        doReturn(new PlanTreeService.SubPlanSnapshot(root,current,List.of(current))).when(trees).loadSubPlan(OWNER_ID, 2);
         mvc.perform(get("/subplans/2")).andExpect(status().isOk()).andExpect(content().string(containsString("Chưa có công việc")))
                 .andExpect(content().string(org.hamcrest.Matchers.not(containsString("0%"))));
     }

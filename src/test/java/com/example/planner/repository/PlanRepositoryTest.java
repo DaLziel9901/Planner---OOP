@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @EnabledIfEnvironmentVariable(named = "TEST_DB_URL", matches = ".+")
 class PlanRepositoryTest {
+    private long ownerId;
     private Connection connection;
     private JdbcTemplate jdbc;
     private PlanRepository repository;
@@ -25,9 +26,8 @@ class PlanRepositoryTest {
     void setUp() throws Exception {
         connection = AuthTestDatabase.openConnection();
         connection.setAutoCommit(false);
-        // Schema và dữ liệu đều nằm trong giao dịch này và được rollback sau test.
-        AuthTestDatabase.applyMvpSchema(connection);
         jdbc = new JdbcTemplate(new SingleConnectionDataSource(connection, true));
+        ownerId = AuthTestDatabase.createFixtureAccount(jdbc);
         repository = new PlanRepository(jdbc);
     }
 
@@ -45,9 +45,9 @@ class PlanRepositoryTest {
     @Test
     void insertReadUpdateDeleteAndPreserveCreationTime() {
         Plan input = new Plan("JUnit Plan");
-        long id = repository.insert(input);
+        long id = repository.insertForOwner(ownerId, input);
         assertTrue(id > 0);
-        Plan saved = repository.findById(id).orElseThrow();
+        Plan saved = repository.findByIdForOwner(ownerId, id).orElseThrow();
         assertEquals("JUnit Plan", saved.getTitle());
         assertNull(saved.getGoal());
         assertNull(saved.getStartDate());
@@ -59,8 +59,8 @@ class PlanRepositoryTest {
         saved.setTitle("JUnit Updated");
         saved.setGoal("730+");
         saved.setDates(start, start.plusDays(1));
-        assertTrue(repository.update(saved));
-        Plan updated = repository.findById(id).orElseThrow();
+        assertTrue(repository.updateForOwner(ownerId, saved));
+        Plan updated = repository.findByIdForOwner(ownerId, id).orElseThrow();
         assertEquals("JUnit Updated", updated.getTitle());
         assertEquals("730+", updated.getGoal());
         assertEquals(start, updated.getStartDate());
@@ -68,30 +68,30 @@ class PlanRepositoryTest {
         assertEquals(created.toInstant(), updated.getCreatedAt().toInstant());
         updated.setGoal(null);
         updated.setDates(null, null);
-        assertTrue(repository.update(updated));
-        assertNull(repository.findById(id).orElseThrow().getStartDate());
-        assertNull(repository.findById(id).orElseThrow().getGoal());
-        assertTrue(repository.deleteById(id));
-        assertTrue(repository.findById(id).isEmpty());
-        assertFalse(repository.update(updated));
-        assertFalse(repository.deleteById(id));
+        assertTrue(repository.updateForOwner(ownerId, updated));
+        assertNull(repository.findByIdForOwner(ownerId, id).orElseThrow().getStartDate());
+        assertNull(repository.findByIdForOwner(ownerId, id).orElseThrow().getGoal());
+        assertTrue(repository.deleteByIdForOwner(ownerId, id));
+        assertTrue(repository.findByIdForOwner(ownerId, id).isEmpty());
+        assertFalse(repository.updateForOwner(ownerId, updated));
+        assertFalse(repository.deleteByIdForOwner(ownerId, id));
     }
 
     @Test
     void duplicateTitlesAndSqlLikeTextAreStoredAsData() {
         String title = "JUnit '); DROP TABLE plan; --";
-        long first = repository.insert(new Plan(title));
-        long second = repository.insert(new Plan(title));
+        long first = repository.insertForOwner(ownerId, new Plan(title));
+        long second = repository.insertForOwner(ownerId, new Plan(title));
         assertNotEquals(first, second);
-        assertEquals(title, repository.findById(first).orElseThrow().getTitle());
-        List<Long> ids = repository.findAll().stream().map(Plan::getId).toList();
+        assertEquals(title, repository.findByIdForOwner(ownerId, first).orElseThrow().getTitle());
+        List<Long> ids = repository.findAllForOwner(ownerId).stream().map(Plan::getId).toList();
         // CURRENT_TIMESTAMP giống nhau trong cùng giao dịch, nên ID lớn đứng trước.
         assertTrue(ids.indexOf(second) < ids.indexOf(first));
     }
 
     @Test
     void deleteCascadesThroughNestedSubPlansAndBothTaskLocations() {
-        long planId = repository.insert(new Plan("JUnit cascade"));
+        long planId = repository.insertForOwner(ownerId, new Plan("JUnit cascade"));
         Long root = jdbc.queryForObject("INSERT INTO sub_plan(plan_id,title) VALUES (?,?) RETURNING id",
                 Long.class, planId, "Tầng 1");
         Long child = jdbc.queryForObject("INSERT INTO sub_plan(plan_id,parent_sub_plan_id,title) VALUES (?,?,?) RETURNING id",
@@ -100,13 +100,13 @@ class PlanRepositoryTest {
                 Long.class, child, "Task trong nhánh");
         Long directTask = jdbc.queryForObject("INSERT INTO task(plan_id,title) VALUES (?,?) RETURNING id",
                 Long.class, planId, "Task trực tiếp");
-        Long freeTask = jdbc.queryForObject("INSERT INTO task(title) VALUES (?) RETURNING id",
-                Long.class, "Task tự do cần giữ");
+        Long freeTask = jdbc.queryForObject("INSERT INTO task(owner_user_id,title) VALUES (?,?) RETURNING id",
+                Long.class, ownerId, "Task tự do cần giữ");
         Long nestedLeaf = jdbc.queryForObject("INSERT INTO sub_task(task_id,title) VALUES (?,?) RETURNING id",
                 Long.class, nestedTask, "Lá 1");
         Long directLeaf = jdbc.queryForObject("INSERT INTO sub_task(task_id,title) VALUES (?,?) RETURNING id",
                 Long.class, directTask, "Lá 2");
-        assertTrue(repository.deleteById(planId));
+        assertTrue(repository.deleteByIdForOwner(ownerId, planId));
         assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM sub_plan WHERE id IN (?,?)", Integer.class, root, child));
         assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM task WHERE id IN (?,?)", Integer.class, nestedTask, directTask));
         assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM sub_task WHERE id IN (?,?)", Integer.class, nestedLeaf, directLeaf));
@@ -114,9 +114,10 @@ class PlanRepositoryTest {
     }
 
     @Test
-    void schemaCanRunTwiceWithoutLosingData() throws Exception {
-        long id = repository.insert(new Plan("JUnit giữ dữ liệu"));
-        AuthTestDatabase.applyMvpSchema(connection);
-        assertEquals("JUnit giữ dữ liệu", repository.findById(id).orElseThrow().getTitle());
+    void bootstrapRefusesInitializedSchemaWithoutLosingData() throws Exception {
+        long id = repository.insertForOwner(ownerId, new Plan("JUnit giữ dữ liệu"));
+        var rejected = assertThrows(java.sql.SQLException.class, AuthTestDatabase::initializeEmptyPlannerSchema);
+        assertTrue(rejected.getMessage().contains("existing Planner relations"));
+        assertEquals("JUnit giữ dữ liệu", repository.findByIdForOwner(ownerId, id).orElseThrow().getTitle());
     }
 }

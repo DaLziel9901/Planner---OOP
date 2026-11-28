@@ -15,54 +15,64 @@ public class SubTaskService {
     private final SubTaskRepository repository;
     private final TaskService tasks;
     public SubTaskService(SubTaskRepository repository, TaskService tasks) { this.repository=repository; this.tasks=tasks; }
-    public List<SubTask> findByTaskId(long taskId) {
-        validateTask(taskId); tasks.getById(taskId);
-        return repository.findByTaskId(taskId);
+    public List<SubTask> findByTaskId(long ownerId, long taskId) {
+        OwnerScope.require(ownerId);
+        validateTask(taskId); tasks.getById(ownerId, taskId);
+        return repository.findByTaskIdForOwner(ownerId, taskId);
     }
-    public SubTask getById(long id) {
+    public SubTask getById(long ownerId, long id) {
+        OwnerScope.require(ownerId);
         if (id <= 0) throw notFound(id);
-        return repository.findById(id).orElseThrow(()->notFound(id));
+        return repository.findByIdForOwner(ownerId, id).orElseThrow(()->notFound(id));
     }
     @Transactional
-    public long create(long taskId,String title,String description,LocalDate date,int order) {
+    public long create(long ownerId, long taskId,String title,String description,LocalDate date,int order) {
+        OwnerScope.require(ownerId);
         validateTask(taskId);
         SubTask leaf=new SubTask(title); leaf.setTaskId(taskId); leaf.setDescription(description);
         leaf.setScheduledDate(date); leaf.setOrderIndex(order);
-        tasks.lockForWrite(taskId);
-        return repository.insert(leaf);
+        tasks.lockForWrite(ownerId, taskId);
+        return repository.insertForOwner(ownerId, leaf).orElseThrow(() -> taskNotFound(taskId));
     }
     @Transactional
-    public void update(long id,String title,String description,LocalDate date,int order) {
-        SubTask current=lockAndRead(id);
+    public void update(long ownerId, long id,String title,String description,LocalDate date,int order) {
+        OwnerScope.require(ownerId);
+        SubTask current=lockAndRead(ownerId, id);
         SubTask updated=new SubTask(current.getId(),current.getTaskId(),title,description,date,
                 current.isDone(),current.getCompletedAt(),order,current.getCreatedAt());
-        if (!repository.update(updated)) throw notFound(id);
+        if (!repository.updateForOwner(ownerId, updated)) throw notFound(id);
     }
     @Transactional
-    public long setCompletion(long id, boolean done) {
-        SubTask current = lockAndRead(id);
+    public long setCompletion(long ownerId, long id, boolean done) {
+        OwnerScope.require(ownerId);
+        SubTask current = lockAndRead(ownerId, id);
         if (done) current.markDone();
         else current.markUndone();
-        if (!repository.updateCompletion(current)) throw notFound(id);
+        if (!repository.updateCompletionForOwner(ownerId, current)) throw notFound(id);
         return current.getTaskId();
     }
     @Transactional
-    public long delete(long id) {
-        SubTask current=lockAndRead(id);
-        if (!repository.deleteById(id)) throw notFound(id);
+    public long delete(long ownerId, long id) {
+        OwnerScope.require(ownerId);
+        SubTask current=lockAndRead(ownerId, id);
+        if (!repository.deleteByIdForOwner(ownerId, id)) throw notFound(id);
         return current.getTaskId();
     }
-    private SubTask lockAndRead(long id) {
-        SubTask before=getById(id);
-        tasks.lockForWrite(before.getTaskId());
-        SubTask current=getById(id);
+    private SubTask lockAndRead(long ownerId, long id) {
+        SubTask before=getById(ownerId, id);
+        tasks.lockForWrite(ownerId, before.getTaskId());
+        SubTask current=getById(ownerId, id);
         if (!Objects.equals(before.getTaskId(),current.getTaskId())) throw notFound(id);
         return current;
     }
     private void validateTask(long id) {
-        if (id <= 0) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Không tìm thấy Task có ID " + id);
+        if (id <= 0) throw taskNotFound(id);
+    }
+    private ResponseStatusException taskNotFound(long id) {
+        return new ResponseStatusException(HttpStatus.NOT_FOUND,"Không tìm thấy Task có ID " + id);
     }
     private ResponseStatusException notFound(long id) {
         return new ResponseStatusException(HttpStatus.NOT_FOUND,"Không tìm thấy SubTask có ID " + id);
     }
+
 }

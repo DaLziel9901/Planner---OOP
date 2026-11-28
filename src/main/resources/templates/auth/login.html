@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Đăng nhập</title></head>
+<body>
+<main>
+    <h1>Đăng nhập</h1>
+    <p th:if="${param.error}">Tên đăng nhập hoặc mật khẩu không đúng.</p>
+    <form method="post" th:action="@{/login}">
+        <p><label>Tên đăng nhập <input name="username" autocomplete="username"></label></p>
+        <p><label>Mật khẩu <input type="password" name="password" autocomplete="current-password"></label></p>
+        <button>Đăng nhập</button>
+    </form>
+    <a th:href="@{/register}">Đăng ký</a>
+</main>
+</body>
+</html>

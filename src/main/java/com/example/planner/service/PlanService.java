@@ -24,38 +24,43 @@ public class PlanService {
     }
 
     // Chỉ đọc thuộc tính Plan, chưa nạp cây và tiến độ.
-    public List<Plan> findAll() {
-        return planRepository.findAll();
+    public List<Plan> findAll(long ownerId) {
+        OwnerScope.require(ownerId);
+        return planRepository.findAllForOwner(ownerId);
     }
 
-    public Plan getById(long id) {
+    public Plan getById(long ownerId, long id) {
+        OwnerScope.require(ownerId);
         validateId(id);
 
-        return planRepository.findById(id)
+        return planRepository.findByIdForOwner(ownerId, id)
                 .orElseThrow(() -> notFound(id));
     }
 
     public long create(
+            long ownerId,
             String title,
             String goal,
             LocalDate startDate,
             LocalDate endDate) {
+        OwnerScope.require(ownerId);
         validateInput(title, startDate, endDate);
 
         Plan plan = new Plan(title);
         plan.setGoal(normalizeGoal(goal));
         plan.setDates(startDate, endDate);
 
-        return planRepository.insert(plan);
+        return planRepository.insertForOwner(ownerId, plan);
     }
 
     public void update(
+            long ownerId,
             long id,
             String title,
             String goal,
             LocalDate startDate,
             LocalDate endDate) {
-        Plan plan = getById(id);
+        Plan plan = getById(ownerId, id);
 
         validateInput(title, startDate, endDate);
 
@@ -63,7 +68,7 @@ public class PlanService {
         plan.setGoal(normalizeGoal(goal));
         plan.setDates(startDate, endDate);
 
-        boolean updated = planRepository.update(plan);
+        boolean updated = planRepository.updateForOwner(ownerId, plan);
 
         // Plan có thể đã bị xóa sau lúc đọc và trước lúc UPDATE.
         if (!updated) {
@@ -72,13 +77,14 @@ public class PlanService {
     }
 
     @Transactional
-    public void delete(long id) {
+    public void delete(long ownerId, long id) {
+        OwnerScope.require(ownerId);
         validateId(id);
-        if (!subPlanRepository.lockPlan(id)) {
+        if (!subPlanRepository.lockPlanForOwner(ownerId, id)) {
             throw notFound(id);
         }
 
-        boolean deleted = planRepository.deleteById(id);
+        boolean deleted = planRepository.deleteByIdForOwner(ownerId, id);
 
         if (!deleted) {
             throw notFound(id);

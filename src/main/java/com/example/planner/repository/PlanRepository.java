@@ -21,83 +21,39 @@ public class PlanRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    // Chỉ đọc thuộc tính Plan, chưa nạp Task/SubPlan.
-    public List<Plan> findAll() {
-        String sql = """
+    public long insertForOwner(long ownerId, Plan plan) {
+        return jdbcTemplate.queryForObject("""
+                INSERT INTO plan (owner_user_id, title, goal, start_date, end_date)
+                VALUES (?, ?, ?, ?, ?) RETURNING id
+                """, Long.class, ownerId, plan.getTitle(), plan.getGoal(),
+                toSqlDate(plan.getStartDate()), toSqlDate(plan.getEndDate()));
+    }
+
+    public List<Plan> findAllForOwner(long ownerId) {
+        return jdbcTemplate.query("""
                 SELECT id, title, goal, start_date, end_date, created_at
-                FROM plan
+                FROM plan WHERE owner_user_id = ?
                 ORDER BY created_at DESC, id DESC
-                """;
-
-        return jdbcTemplate.query(sql, this::mapRow);
+                """, this::mapRow, ownerId);
     }
 
-    public Optional<Plan> findById(long id) {
-        String sql = """
+    public Optional<Plan> findByIdForOwner(long ownerId, long id) {
+        return jdbcTemplate.query("""
                 SELECT id, title, goal, start_date, end_date, created_at
-                FROM plan
-                WHERE id = ?
-                """;
-
-        List<Plan> plans = jdbcTemplate.query(sql, this::mapRow, id);
-
-        if (plans.isEmpty()) {
-            return Optional.empty();
-        }
-
-        return Optional.of(plans.get(0));
+                FROM plan WHERE id = ? AND owner_user_id = ?
+                """, this::mapRow, id, ownerId).stream().findFirst();
     }
 
-    public long insert(Plan plan) {
-        String sql = """
-                INSERT INTO plan (title, goal, start_date, end_date)
-                VALUES (?, ?, ?, ?)
-                RETURNING id
-                """;
-
-        Long id = jdbcTemplate.queryForObject(
-                sql,
-                Long.class,
-                plan.getTitle(),
-                plan.getGoal(),
-                toSqlDate(plan.getStartDate()),
-                toSqlDate(plan.getEndDate())
-        );
-
-        if (id == null) {
-            throw new IllegalStateException(
-                    "Database không trả về ID của Plan vừa tạo"
-            );
-        }
-
-        return id;
+    public boolean updateForOwner(long ownerId, Plan plan) {
+        return jdbcTemplate.update("""
+                UPDATE plan SET title = ?, goal = ?, start_date = ?, end_date = ?
+                WHERE id = ? AND owner_user_id = ?
+                """, plan.getTitle(), plan.getGoal(), toSqlDate(plan.getStartDate()),
+                toSqlDate(plan.getEndDate()), plan.getId(), ownerId) == 1;
     }
 
-    public boolean update(Plan plan) {
-        String sql = """
-                UPDATE plan
-                SET title = ?, goal = ?, start_date = ?, end_date = ?
-                WHERE id = ?
-                """;
-
-        int affectedRows = jdbcTemplate.update(
-                sql,
-                plan.getTitle(),
-                plan.getGoal(),
-                toSqlDate(plan.getStartDate()),
-                toSqlDate(plan.getEndDate()),
-                plan.getId()
-        );
-
-        return affectedRows == 1;
-    }
-
-    public boolean deleteById(long id) {
-        String sql = "DELETE FROM plan WHERE id = ?";
-
-        int affectedRows = jdbcTemplate.update(sql, id);
-
-        return affectedRows == 1;
+    public boolean deleteByIdForOwner(long ownerId, long id) {
+        return jdbcTemplate.update("DELETE FROM plan WHERE id = ? AND owner_user_id = ?", id, ownerId) == 1;
     }
 
     private Plan mapRow(ResultSet rs, int rowNum) throws SQLException {

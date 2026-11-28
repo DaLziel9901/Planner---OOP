@@ -1,33 +1,69 @@
 package com.example.planner.controller;
 
+import com.example.planner.ai.GeneratedPlanService;
+import com.example.planner.ai.PlanGenerationProvider;
+import com.example.planner.model.SubTask;
+import com.example.planner.repository.SubTaskRepository;
 import com.example.planner.service.TaskService;
 import com.example.planner.service.PlanService;
 import com.example.planner.service.SubPlanService;
 import com.example.planner.service.SubTaskService;
+import com.example.planner.service.RegistrationService;
+import com.example.planner.repository.UserRepository;
 import com.example.planner.support.AuthTestDatabase;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import java.net.*;
 import java.net.http.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.*;
+import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.doThrow;
 
 // HTTP thật qua cổng ngẫu nhiên + Spring service/proxy + PostgreSQL. Không chạy JavaScript.
 @EnabledIfEnvironmentVariable(named = "TEST_DB_URL", matches = ".+")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class TaskWebSmokeTest {
+    private static final String AI_DRAFT = """
+            {"title":"AI smoke plan","goal":"Read","startDate":null,"endDate":null,"subPlans":[
+              {"title":"Practice","description":null,"startDate":null,"endDate":null,"subPlans":[],"tasks":[
+                {"title":"Read chapter","description":null,"startDate":null,"endDate":null,"subTasks":[
+                  {"title":"Read page one","description":null,"scheduledDate":null},
+                  {"title":"Summarize page one","description":null,"scheduledDate":null}
+                ]}
+              ]}
+            ],"tasks":[]}
+            """;
+    private static final Pattern DRAFT_ID = Pattern.compile("name=\"draftId\"\\s+value=\"([a-f0-9-]{36})\"");
+
+    @TestConfiguration(proxyBeanMethods = false)
+    static class AiFixture {
+        @Bean
+        @Primary
+        PlanGenerationProvider testPlanGenerationProvider() {
+            return (instructions, input) -> AI_DRAFT;
+        }
+    }
+
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry properties) {
         AuthTestDatabase.registerApplicationProperties(properties);
@@ -40,18 +76,160 @@ class TaskWebSmokeTest {
     @Autowired SubPlanService subPlans;
     @Autowired SubTaskService subTasks;
     @Autowired PlatformTransactionManager transactions;
+    @Autowired RegistrationService registration;
+    @Autowired UserRepository users;
+    @Autowired GeneratedPlanService generatedPlans;
+    @MockitoSpyBean SubTaskRepository leafWrites;
+    private static final Pattern CSRF = Pattern.compile("name=\"_csrf\"\\s+value=\"([^\"]+)\"");
+    private long ownerId;
+    private String username;
+    private String password;
 
-    private HttpClient client() {
+    @BeforeEach
+    void registerFixtureAccount() {
+        username = "http_" + UUID.randomUUID().toString().replace("-", "").substring(0, 24);
+        password = UUID.randomUUID().toString();
+        assertTrue(registration.register(username, password, password).isEmpty());
+        ownerId = users.findByUsername(username).orElseThrow().id();
+    }
+
+    @AfterEach
+    void removeFixtureAccount() {
+        if (ownerId == 0) return;
+        jdbc.update("DELETE FROM public.task WHERE owner_user_id = ?", ownerId);
+        jdbc.update("DELETE FROM public.plan WHERE owner_user_id = ?", ownerId);
+        jdbc.update("DELETE FROM public.app_user WHERE id = ?", ownerId);
+    }
+
+    private HttpClient guestClient() {
         return HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10))
                 .cookieHandler(new CookieManager(null, CookiePolicy.ACCEPT_ALL))
                 .followRedirects(HttpClient.Redirect.NEVER).build();
+    }
+
+    private HttpClient client() throws Exception {
+        return loginClient(username, password);
+    }
+
+    private HttpClient loginClient(String username, String password) throws Exception {
+        var client = guestClient();
+        var login = request(client, "/login", Map.of("username", username, "password", password));
+        assertEquals(302, login.statusCode());
+        assertEquals("/plans", redirectPath(login));
+        return client;
+    }
+
+    @Test
+    void aiPreviewAndEditStayInSessionUntilConfirmedOnce() throws Exception {
+        var browser = client();
+        assertEquals(200, request(browser, "/ai/plans/new", null).statusCode());
+        var preview = request(browser, "/ai/plans/preview",
+                Map.of("goal", "Read books", "level", "Beginner", "durationDays", "14"));
+        assertEquals(200, preview.statusCode());
+        String previewId = draftId(preview.body());
+        assertTrue(plans.findAll(ownerId).isEmpty());
+
+        var edited = request(browser, "/ai/plans/edit", Map.of("draftId", previewId,
+                "json", AI_DRAFT.replace("AI smoke plan", "Edited AI plan")));
+        assertEquals(200, edited.statusCode());
+        String editedId = draftId(edited.body());
+        assertNotEquals(previewId, editedId);
+        assertTrue(plans.findAll(ownerId).isEmpty());
+        assertEquals(404, request(client(), "/ai/plans/confirm", Map.of("draftId", editedId)).statusCode());
+        assertEquals(404, request(browser, "/ai/plans/confirm", Map.of("draftId", previewId)).statusCode());
+        assertTrue(plans.findAll(ownerId).isEmpty());
+
+        var confirmed = request(browser, "/ai/plans/confirm", Map.of("draftId", editedId));
+        assertEquals(302, confirmed.statusCode());
+        var saved = plans.findAll(ownerId);
+        assertEquals(1, saved.size());
+        assertEquals("Edited AI plan", saved.get(0).getTitle());
+        String detail = "/plans/" + saved.get(0).getId();
+        assertEquals(detail, redirectPath(confirmed));
+        var page = request(browser, detail, null);
+        assertEquals(200, page.statusCode());
+        assertTrue(page.body().contains("0/2 SubTask"));
+        assertEquals(404, request(browser, "/ai/plans/confirm", Map.of("draftId", editedId)).statusCode());
+        assertEquals(1, plans.findAll(ownerId).size());
+    }
+
+    @Test
+    void generatedTreeRollsBackWhenSecondLeafWriteFails() {
+        String firstLeaf = "Rollback fixture " + UUID.randomUUID();
+        var failure = new org.springframework.dao.DataAccessResourceFailureException("Fixture write failed");
+        doThrow(failure).when(leafWrites).insertForOwner(eq(ownerId),
+                argThat((SubTask leaf) -> leaf != null && "Summarize page one".equals(leaf.getTitle())));
+
+        assertSame(failure, assertThrows(org.springframework.dao.DataAccessResourceFailureException.class,
+                () -> generatedPlans.confirm(ownerId, AI_DRAFT.replace("Read page one", firstLeaf))));
+        assertTrue(plans.findAll(ownerId).isEmpty());
+        assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM sub_task WHERE title = ?", Integer.class,
+                firstLeaf));
+    }
+
+    private static String draftId(String html) {
+        var found = DRAFT_ID.matcher(html);
+        assertTrue(found.find(), "Preview should render a draft ID");
+        return found.group(1);
+    }
+
+    @Test
+    void separateSessionsCannotReadOrWriteAnotherOwnersTree() throws Exception {
+        String bobUsername = "http_" + UUID.randomUUID().toString().replace("-", "").substring(0, 24);
+        String bobPassword = UUID.randomUUID().toString();
+        assertTrue(registration.register(bobUsername, bobPassword, bobPassword).isEmpty());
+        long bobId = users.findByUsername(bobUsername).orElseThrow().id();
+        try {
+            long bobPlan = plans.create(bobId, "Bob private plan", null, null, null);
+            long bobSubPlan = subPlans.create(bobId, bobPlan, null, "Bob phase", null, null, null, 0);
+            long bobTask = service.create(bobId, null, bobSubPlan, "Bob task", null, null, null, 0);
+            long bobFreeTask = service.create(bobId, "Bob independent task", null, null, null, 0);
+            long bobLeaf = subTasks.create(bobId, bobTask, "Bob leaf", null, null, 0);
+            long aliceTask = service.create(ownerId, "Alice task", null, null, null, 0);
+            long aliceLeaf = subTasks.create(ownerId, aliceTask, "Alice leaf", null, null, 0);
+
+            var aliceSession = client();
+            var bobSession = loginClient(bobUsername, bobPassword);
+            assertTrue(request(bobSession, "/plans", null).body().contains("Bob private plan"));
+            assertFalse(request(aliceSession, "/plans", null).body().contains("Bob private plan"));
+            assertFalse(request(aliceSession, "/tasks", null).body().contains("Bob independent task"));
+            for (String path : List.of("/plans/" + bobPlan, "/subplans/" + bobSubPlan,
+                    "/tasks/" + bobTask, "/tasks/" + bobFreeTask, "/subtasks/" + bobLeaf)) {
+                assertEquals(404, request(aliceSession, path, null).statusCode());
+                assertEquals(404, request(aliceSession, path + "/delete", Map.of()).statusCode());
+            }
+            assertEquals(404, request(aliceSession, "/subtasks/" + bobLeaf + "/completion",
+                    Map.of("done", "true")).statusCode());
+            assertFalse(subTasks.getById(bobId, bobLeaf).isDone());
+            assertEquals("Bob task", service.getById(bobId, bobTask).getTitle());
+
+            String alicePath = "/subtasks/" + aliceLeaf;
+            var completed = request(aliceSession, alicePath + "/completion",
+                    Map.of("done", "true", "source", "plan", "sourceId", Long.toString(bobPlan)));
+            assertEquals(302, completed.statusCode());
+            assertEquals(alicePath, redirectPath(completed));
+            assertTrue(subTasks.getById(ownerId, aliceLeaf).isDone());
+            assertEquals(404, request(bobSession, alicePath, null).statusCode());
+            assertEquals("/login", redirectPath(request(aliceSession, "/logout", Map.of())));
+            assertEquals("/login", redirectPath(request(aliceSession, alicePath, null)));
+        } finally {
+            jdbc.update("DELETE FROM public.task WHERE owner_user_id = ?", bobId);
+            jdbc.update("DELETE FROM public.plan WHERE owner_user_id = ?", bobId);
+            jdbc.update("DELETE FROM public.app_user WHERE id = ?", bobId);
+        }
     }
 
     private HttpResponse<String> request(HttpClient client, String path, Map<String,String> form) throws Exception {
         var builder = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path)).timeout(Duration.ofSeconds(15));
         if (form == null) builder.GET();
         else {
-            String body = form.entrySet().stream().map(entry -> URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8)
+            var page = request(client, "/login", null);
+            assertEquals(200, page.statusCode());
+            var csrf = CSRF.matcher(page.body());
+            assertTrue(csrf.find(), "Login form should render a CSRF token");
+            var fields = new HashMap<>(form);
+            fields.put("_csrf", csrf.group(1));
+            String body = fields.entrySet().stream().map(entry -> URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8)
                     + "=" + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8)).reduce((a,b) -> a + "&" + b).orElse("");
             builder.header("Content-Type", "application/x-www-form-urlencoded").POST(HttpRequest.BodyPublishers.ofString(body));
         }
@@ -121,11 +299,11 @@ class TaskWebSmokeTest {
     @Test
     void parentLinksScopedListsAndImmutableLocationWorkThroughRealHttp() throws Exception {
         String marker = "Task parents " + UUID.randomUUID();
-        long plan = plans.create(marker, "", null, null);
+        long plan = plans.create(ownerId, marker, "", null, null);
         Long free = null;
         try {
-            long sub = subPlans.create(plan, null, "Sub " + marker, "", null, null, 0);
-            free = service.create(marker + " Free", "", null, null, 0);
+            long sub = subPlans.create(ownerId, plan, null, "Sub " + marker, "", null, null, 0);
+            free = service.create(ownerId, marker + " Free", "", null, null, 0);
             var client = client();
             String planList = "/tasks?planId=" + plan;
             String subList = "/tasks?subPlanId=" + sub;
@@ -156,23 +334,23 @@ class TaskWebSmokeTest {
             assertTrue(subHtml.contains(marker + " Nested")); assertFalse(subHtml.contains(marker + " Direct"));
             assertTrue(freeHtml.contains(marker + " Free")); assertFalse(freeHtml.contains(marker + " Direct"));
             assertFalse(freeHtml.contains(marker + " Nested"));
-            var time = service.getById(nested).getCreatedAt().toInstant();
+            var time = service.getById(ownerId, nested).getCreatedAt().toInstant();
             var editPage = request(client, nestedPath + "/edit", null);
             assertEquals(200, editPage.statusCode()); assertFalse(editPage.body().contains("name=\"planId\""));
             assertFalse(editPage.body().contains("name=\"subPlanId\""));
             assertEquals(302, request(client, nestedPath + "/edit", Map.of("title",marker + " Edited",
                     "planId",Long.toString(plan),"subPlanId","999999999","createdAt","fake")).statusCode());
-            var saved = service.getById(nested); assertNull(saved.getPlanId()); assertEquals(sub,saved.getSubPlanId());
+            var saved = service.getById(ownerId, nested); assertNull(saved.getPlanId()); assertEquals(sub,saved.getSubPlanId());
             assertEquals(time,saved.getCreatedAt().toInstant());
             assertEquals(subList, redirectPath(request(client, nestedPath + "/delete", Map.of("planId",Long.toString(plan)))));
             assertEquals(planList, redirectPath(request(client, directPath + "/delete", Map.of())));
             assertEquals(404, request(client, nestedPath, null).statusCode());
             assertEquals(404, request(client, directPath, null).statusCode());
-            long cascade = service.create(null, sub, marker + " Cascade", "", null, null, 0);
-            long directCascade = service.create(plan, null, marker + " Direct cascade", "", null, null, 0);
+            long cascade = service.create(ownerId, null, sub, marker + " Cascade", "", null, null, 0);
+            long directCascade = service.create(ownerId, plan, null, marker + " Direct cascade", "", null, null, 0);
             assertEquals(302, request(client, "/plans/" + plan + "/delete", Map.of()).statusCode());
             assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM task WHERE id IN (?,?)", Integer.class, cascade, directCascade));
-            assertEquals(free, service.getById(free).getId());
+            assertEquals(free, service.getById(ownerId, free).getId());
         } finally {
             if (free != null) jdbc.update("DELETE FROM task WHERE id=?", free);
             jdbc.update("DELETE FROM plan WHERE id=?", plan); // Chỉ fixture do chính test tạo.
@@ -183,17 +361,17 @@ class TaskWebSmokeTest {
     void realServiceTransactionRollsBackWithoutPartialData() {
         String marker = "Task rollback " + UUID.randomUUID();
         assertThrows(IllegalStateException.class, () -> new TransactionTemplate(transactions).execute(status -> {
-            long id = service.create(marker, "", null, null, 0);
-            service.update(id, marker, "Nội dung", null, null, 1);
+            long id = service.create(ownerId, marker, "", null, null, 0);
+            service.update(ownerId, id, marker, "Nội dung", null, null, 1);
             throw new IllegalStateException("Controlled rollback");
         }));
         assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM task WHERE title=?", Integer.class, marker));
         assertThrows(IllegalStateException.class, () -> new TransactionTemplate(transactions).execute(status -> {
-            long plan = plans.create(marker, "", null, null);
-            long sub = subPlans.create(plan, null, "Sub", "", null, null, 0);
-            long id = service.create(null, sub, marker, "", null, null, 0);
-            service.update(id, marker, "Không commit", null, null, 1);
-            service.create(plan, null, marker, "", null, null, 0);
+            long plan = plans.create(ownerId, marker, "", null, null);
+            long sub = subPlans.create(ownerId, plan, null, "Sub", "", null, null, 0);
+            long id = service.create(ownerId, null, sub, marker, "", null, null, 0);
+            service.update(ownerId, id, marker, "Không commit", null, null, 1);
+            service.create(ownerId, plan, null, marker, "", null, null, 0);
             throw new IllegalStateException("Controlled rollback for tree Tasks");
         }));
         assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM task WHERE title=?", Integer.class, marker));
@@ -203,13 +381,13 @@ class TaskWebSmokeTest {
     @Test
     void subTaskCrudAndCascadeWorkOverHttpForAllTaskLocations() throws Exception {
         String marker="SubTask HTTP " + UUID.randomUUID();
-        long plan=plans.create(marker,"",null,null);
+        long plan=plans.create(ownerId, marker,"",null,null);
         List<Long> freeFixtures=new ArrayList<>();
         try {
-            long sub=subPlans.create(plan,null,"Sub","",null,null,0);
-            long free=service.create("Free","",null,null,0); freeFixtures.add(free);
-            long direct=service.create(plan,null,"Direct","",null,null,0);
-            long nested=service.create(null,sub,"Nested","",null,null,0);
+            long sub=subPlans.create(ownerId, plan,null,"Sub","",null,null,0);
+            long free=service.create(ownerId, "Free","",null,null,0); freeFixtures.add(free);
+            long direct=service.create(ownerId, plan,null,"Direct","",null,null,0);
+            long nested=service.create(ownerId, null,sub,"Nested","",null,null,0);
             var client=client();
             assertEquals(200,request(client,"/subtasks/new",null).statusCode());
             var missing=request(client,"/subtasks",Map.of("title",marker));
@@ -227,7 +405,7 @@ class TaskWebSmokeTest {
                         "description","<script>leaf</script>","done","true","completedAt","fake","createdAt","fake"));
                 assertEquals(302,created.statusCode()); String path=redirectPath(created);
                 long id=Long.parseLong(path.substring("/subtasks/".length()));
-                var saved=subTasks.getById(id); assertEquals(parent,saved.getTaskId()); assertNull(saved.getScheduledDate());
+                var saved=subTasks.getById(ownerId, id); assertEquals(parent,saved.getTaskId()); assertNull(saved.getScheduledDate());
                 assertFalse(saved.isDone()); assertNull(saved.getCompletedAt()); var createdAt=saved.getCreatedAt().toInstant();
                 var detail=request(client,path,null); assertEquals(200,detail.statusCode());
                 assertTrue(detail.body().contains("Đã tạo SubTask")); assertTrue(detail.body().contains("&lt;script&gt;leaf&lt;/script&gt;"));
@@ -240,43 +418,43 @@ class TaskWebSmokeTest {
                 assertFalse(editForm.body().contains("/completion"));
                 var invalid=request(client,path + "/edit",Map.of("title",title,"scheduledDate","abc","orderIndex","-1"));
                 assertEquals(200,invalid.statusCode()); assertTrue(invalid.body().contains("value=\"abc\""));
-                assertEquals(title,subTasks.getById(id).getTitle());
+                assertEquals(title,subTasks.getById(ownerId, id).getTitle());
                 OffsetDateTime completed=OffsetDateTime.parse("2026-11-01T00:00:00Z");
                 jdbc.update("UPDATE sub_task SET done=true, completed_at=? WHERE id=?",completed,id);
                 var edited=request(client,path + "/edit",Map.of("title",title + " edit","taskId","999999999",
                         "scheduledDate","2027-01-01","orderIndex","2","done","false","completedAt","fake","createdAt","fake"));
                 assertEquals(302,edited.statusCode()); assertEquals(path,redirectPath(edited));
                 var after=request(client,path,null); assertEquals(200,after.statusCode()); assertTrue(after.body().contains("Đã cập nhật SubTask"));
-                saved=subTasks.getById(id); assertEquals(parent,saved.getTaskId()); assertTrue(saved.isDone());
+                saved=subTasks.getById(ownerId, id); assertEquals(parent,saved.getTaskId()); assertTrue(saved.isDone());
                 assertEquals(completed.toInstant(),saved.getCompletedAt().toInstant()); assertEquals(createdAt,saved.getCreatedAt().toInstant());
                 assertEquals(java.time.LocalDate.of(2027,1,1),saved.getScheduledDate());
-                var taskBefore=service.getById(parent);
+                var taskBefore=service.getById(ownerId, parent);
                 assertEquals(302,request(client,"/tasks/" + parent + "/edit",Map.of("title","Task metadata edit",
                         "planId","999999999","subPlanId","999999999","createdAt","fake")).statusCode());
-                var taskAfter=service.getById(parent);
+                var taskAfter=service.getById(ownerId, parent);
                 assertEquals(taskBefore.getPlanId(),taskAfter.getPlanId()); assertEquals(taskBefore.getSubPlanId(),taskAfter.getSubPlanId());
                 assertEquals(taskBefore.getCreatedAt().toInstant(),taskAfter.getCreatedAt().toInstant());
-                assertEquals(parent,subTasks.getById(id).getTaskId()); assertTrue(subTasks.getById(id).isDone());
+                assertEquals(parent,subTasks.getById(ownerId, id).getTaskId()); assertTrue(subTasks.getById(ownerId, id).isDone());
                 assertEquals(302,request(client,path + "/edit",Map.of("title",title,"scheduledDate","")).statusCode());
-                assertNull(subTasks.getById(id).getScheduledDate()); assertTrue(subTasks.getById(id).isDone());
-                long sibling=subTasks.create(parent,"Sibling","",null,0);
+                assertNull(subTasks.getById(ownerId, id).getScheduledDate()); assertTrue(subTasks.getById(ownerId, id).isDone());
+                long sibling=subTasks.create(ownerId, parent,"Sibling","",null,0);
                 assertEquals(405,request(client,path + "/delete",null).statusCode());
                 assertEquals("/tasks/" + parent,redirectPath(request(client,path + "/delete",Map.of("taskId","999999999"))));
-                assertEquals(404,request(client,path,null).statusCode()); assertNotNull(subTasks.getById(sibling));
+                assertEquals(404,request(client,path,null).statusCode()); assertNotNull(subTasks.getById(ownerId, sibling));
                 assertEquals(302,request(client,"/tasks/" + parent + "/delete",Map.of()).statusCode());
                 assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM sub_task WHERE id=?",Integer.class,sibling));
             }
-            long keeper=service.create("Keep","",null,null,0); freeFixtures.add(keeper);
-            long keptLeaf=subTasks.create(keeper,"Keep leaf","",null,0);
-            long subTaskParent=service.create(null,sub,"Sub cascade","",null,null,0);
-            long subLeaf=subTasks.create(subTaskParent,"Sub leaf","",null,0);
+            long keeper=service.create(ownerId, "Keep","",null,null,0); freeFixtures.add(keeper);
+            long keptLeaf=subTasks.create(ownerId, keeper,"Keep leaf","",null,0);
+            long subTaskParent=service.create(ownerId, null,sub,"Sub cascade","",null,null,0);
+            long subLeaf=subTasks.create(ownerId, subTaskParent,"Sub leaf","",null,0);
             assertEquals(302,request(client,"/subplans/" + sub + "/delete",Map.of()).statusCode());
             assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM sub_task WHERE id=?",Integer.class,subLeaf));
-            long planParent=service.create(plan,null,"Plan cascade","",null,null,0);
-            long planLeaf=subTasks.create(planParent,"Plan leaf","",null,0);
+            long planParent=service.create(ownerId, plan,null,"Plan cascade","",null,null,0);
+            long planLeaf=subTasks.create(ownerId, planParent,"Plan leaf","",null,0);
             assertEquals(302,request(client,"/plans/" + plan + "/delete",Map.of()).statusCode());
             assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM sub_task WHERE id=?",Integer.class,planLeaf));
-            assertNotNull(subTasks.getById(keptLeaf));
+            assertNotNull(subTasks.getById(ownerId, keptLeaf));
         } finally {
             for (long id:freeFixtures) jdbc.update("DELETE FROM task WHERE id=?",id);
             jdbc.update("DELETE FROM plan WHERE id=?",plan);
@@ -285,40 +463,40 @@ class TaskWebSmokeTest {
 
     @Test
     void subTaskWritesUseRealMandatoryTaskGateAndRollbackChangesAndDeletes() {
-        assertThrows(org.springframework.transaction.IllegalTransactionStateException.class,()->service.lockForWrite(Long.MAX_VALUE));
+        assertThrows(org.springframework.transaction.IllegalTransactionStateException.class,()->service.lockForWrite(ownerId, Long.MAX_VALUE));
         String marker="SubTask rollback " + UUID.randomUUID();
         assertThrows(IllegalStateException.class,()->new TransactionTemplate(transactions).execute(status->{
-            long plan=plans.create(marker,"",null,null);
-            long sub=subPlans.create(plan,null,"Sub","",null,null,0);
-            long free=service.create(marker,"",null,null,0);
-            long direct=service.create(plan,null,marker,"",null,null,0);
-            long nested=service.create(null,sub,marker,"",null,null,0);
+            long plan=plans.create(ownerId, marker,"",null,null);
+            long sub=subPlans.create(ownerId, plan,null,"Sub","",null,null,0);
+            long free=service.create(ownerId, marker,"",null,null,0);
+            long direct=service.create(ownerId, plan,null,marker,"",null,null,0);
+            long nested=service.create(ownerId, null,sub,marker,"",null,null,0);
             for (long parent:new long[]{free,direct,nested}) {
-                long id=subTasks.create(parent,marker,"",null,0);
-                subTasks.update(id,marker,"Không commit",null,1);
+                long id=subTasks.create(ownerId, parent,marker,"",null,0);
+                subTasks.update(ownerId, id,marker,"Không commit",null,1);
             }
             throw new IllegalStateException("Controlled rollback for all locations");
         }));
         assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM plan WHERE title=?",Integer.class,marker));
         assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM task WHERE title=?",Integer.class,marker));
         assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM sub_task WHERE title=?",Integer.class,marker));
-        long parent=service.create(marker,"",null,null,0);
+        long parent=service.create(ownerId, marker,"",null,null,0);
         try {
-            long id=subTasks.create(parent,marker,"",null,0);
+            long id=subTasks.create(ownerId, parent,marker,"",null,0);
             assertThrows(IllegalStateException.class,()->new TransactionTemplate(transactions).execute(status->{
-                subTasks.update(id,"Không lưu","",null,0); subTasks.delete(id);
-                subTasks.create(parent,"Thêm chưa commit","",null,0);
+                subTasks.update(ownerId, id,"Không lưu","",null,0); subTasks.delete(ownerId, id);
+                subTasks.create(ownerId, parent,"Thêm chưa commit","",null,0);
                 throw new IllegalStateException("Controlled rollback for update/delete");
             }));
-            assertEquals(marker,subTasks.getById(id).getTitle()); assertEquals(1,subTasks.findByTaskId(parent).size());
+            assertEquals(marker,subTasks.getById(ownerId, id).getTitle()); assertEquals(1,subTasks.findByTaskId(ownerId, parent).size());
         } finally { jdbc.update("DELETE FROM task WHERE id=?",parent); }
     }
 
     @Test
     void independentLeafCompletionPersistsAcrossHttpRedirectsAndMetadataEdit() throws Exception {
-        long parent = service.create("Completion smoke " + UUID.randomUUID(), "", null, null, 0);
+        long parent = service.create(ownerId, "Completion smoke " + UUID.randomUUID(), "", null, null, 0);
         try {
-            long leaf = subTasks.create(parent, "Lá kiểm thử", "", null, 0);
+            long leaf = subTasks.create(ownerId, parent, "Lá kiểm thử", "", null, 0);
             String taskPage = "/tasks/" + parent;
             String listPage = "/subtasks?taskId=" + parent;
             String detail = "/subtasks/" + leaf;
@@ -334,7 +512,7 @@ class TaskWebSmokeTest {
             assertTrue(afterTick.contains("Đã đánh dấu hoàn thành SubTask"));
             assertTrue(afterTick.contains("1/1 SubTask"));
             assertTrue(afterTick.contains("Bỏ đánh dấu hoàn thành"));
-            var saved = subTasks.getById(leaf);
+            var saved = subTasks.getById(ownerId, leaf);
             assertTrue(saved.isDone());
             OffsetDateTime first = saved.getCompletedAt();
             assertNotNull(first);
@@ -343,21 +521,21 @@ class TaskWebSmokeTest {
             var repeated = request(http, endpoint, Map.of("done", "true"));
             assertEquals(302, repeated.statusCode());
             assertEquals(detail, redirectPath(repeated));
-            assertEquals(first, subTasks.getById(leaf).getCompletedAt());
+            assertEquals(first, subTasks.getById(ownerId, leaf).getCompletedAt());
             assertTrue(request(http, redirectPath(repeated), null).body().contains("Bỏ đánh dấu hoàn thành"));
             var edit = request(http, detail + "/edit", Map.of("title", "Metadata mới", "done", "false"));
             assertEquals(302, edit.statusCode());
-            var edited = subTasks.getById(leaf);
+            var edited = subTasks.getById(ownerId, leaf);
             assertEquals("Metadata mới", edited.getTitle());
             assertTrue(edited.isDone());
             assertEquals(first, edited.getCompletedAt());
 
             assertThrows(IllegalStateException.class, () -> new TransactionTemplate(transactions).executeWithoutResult(status -> {
-                subTasks.setCompletion(leaf, false);
-                assertNull(subTasks.getById(leaf).getCompletedAt());
+                subTasks.setCompletion(ownerId, leaf, false);
+                assertNull(subTasks.getById(ownerId, leaf).getCompletedAt());
                 throw new IllegalStateException("Controlled completion rollback");
             }));
-            assertEquals(first, subTasks.getById(leaf).getCompletedAt());
+            assertEquals(first, subTasks.getById(ownerId, leaf).getCompletedAt());
 
             var undo = request(http, endpoint, Map.of("done", "false", "source", "subtasks",
                     "sourceId", Long.toString(parent)));
@@ -367,7 +545,7 @@ class TaskWebSmokeTest {
             assertTrue(afterUndo.contains("Đã bỏ đánh dấu hoàn thành SubTask"));
             assertTrue(afterUndo.contains("Chưa hoàn thành"));
             assertTrue(afterUndo.contains("0/1 SubTask"));
-            var undone = subTasks.getById(leaf);
+            var undone = subTasks.getById(ownerId, leaf);
             assertFalse(undone.isDone());
             assertNull(undone.getCompletedAt());
         } finally {
@@ -378,17 +556,17 @@ class TaskWebSmokeTest {
     @Test
     void loadedProgressAcrossPagesUsesLeafCountsAndRefreshesAfterCrud() throws Exception {
         String marker="Progress HTTP " + UUID.randomUUID();
-        long plan=plans.create(marker,"",null,null); Long free=null;
+        long plan=plans.create(ownerId, marker,"",null,null); Long free=null;
         try {
-            long first=subPlans.create(plan,null,"Depth 1","",null,null,0), deep=first;
-            for(int depth=2;depth<=5;depth++) deep=subPlans.create(plan,deep,"Depth " + depth,"",null,null,0);
-            long direct=service.create(plan,null,"Direct","",null,null,0);
-            long nested=service.create(null,deep,"Nested","",null,null,0);
-            free=service.create("Independent excluded","",null,null,0);
-            long done=subTasks.create(direct,"Done","",null,0);
-            long freeDone=subTasks.create(free,"Independent done","",null,0);
+            long first=subPlans.create(ownerId, plan,null,"Depth 1","",null,null,0), deep=first;
+            for(int depth=2;depth<=5;depth++) deep=subPlans.create(ownerId, plan,deep,"Depth " + depth,"",null,null,0);
+            long direct=service.create(ownerId, plan,null,"Direct","",null,null,0);
+            long nested=service.create(ownerId, null,deep,"Nested","",null,null,0);
+            free=service.create(ownerId, "Independent excluded","",null,null,0);
+            long done=subTasks.create(ownerId, direct,"Done","",null,0);
+            long freeDone=subTasks.create(ownerId, free,"Independent done","",null,0);
             jdbc.update("UPDATE sub_task SET done=true, completed_at=CURRENT_TIMESTAMP WHERE id IN (?,?)",done,freeDone);
-            List<Long> leafIds=new ArrayList<>(); for(int i=0;i<3;i++) leafIds.add(subTasks.create(nested,"Leaf " + i,"",null,0));
+            List<Long> leafIds=new ArrayList<>(); for(int i=0;i<3;i++) leafIds.add(subTasks.create(ownerId, nested,"Leaf " + i,"",null,0));
             var client=client();
             assertTrue(request(client,"/plans/" + plan,null).body().contains("1/4 SubTask — 25%"));
             assertTrue(request(client,"/plans",null).body().contains("1/4 SubTask — 25%"));
@@ -412,10 +590,10 @@ class TaskWebSmokeTest {
             assertTrue(request(client, redirectPath(second), null).body().contains("2/3 SubTask — 66,67%"));
             assertTrue(request(client,"/tasks/" + nested,null).body().contains("2/3 SubTask — 66,67%"));
             assertTrue(request(client,"/plans/" + plan,null).body().contains("3/4 SubTask — 75%"));
-            for(long id:leafIds) subTasks.delete(id);
+            for(long id:leafIds) subTasks.delete(ownerId, id);
             String emptyTask=request(client,"/tasks/" + nested,null).body();
             assertTrue(emptyTask.contains("Chưa có công việc")); assertFalse(emptyTask.contains("0%"));
-            subTasks.delete(done);
+            subTasks.delete(ownerId, done);
             String emptyPlan=request(client,"/plans/" + plan,null).body();
             assertTrue(emptyPlan.contains("Chưa có công việc")); assertFalse(emptyPlan.contains("0%"));
             var created=request(client,"/subtasks",Map.of("taskId",Long.toString(nested),"title","New leaf after empty"));

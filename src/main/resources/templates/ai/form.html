@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Tạo kế hoạch bằng AI</title></head>
+<body>
+<main>
+    <h1>Tạo kế hoạch bằng AI</h1>
+    <p th:if="${error}" th:text="${error}" role="alert"></p>
+    <p>Các nội dung bạn nhập sẽ được gửi đến dịch vụ AI đã cấu hình.</p>
+    <form method="post" th:action="@{/ai/plans/preview}">
+        <p><label>Mục tiêu <textarea name="goal" required maxlength="1000"></textarea></label></p>
+        <p><label>Trình độ <input name="level" required maxlength="120"></label></p>
+        <p><label>Thời hạn (ngày) <input name="durationDays" type="number" min="1" max="366" required></label></p>
+        <p><label>Ghi chú <textarea name="notes" maxlength="1500"></textarea></label></p>
+        <button>Xem bản nháp</button>
+    </form>
+    <a th:href="@{/plans}">Kế hoạch</a>
+</main>
+</body>
+</html>

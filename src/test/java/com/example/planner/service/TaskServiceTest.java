@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class TaskServiceTest {
+    private static final long OWNER_ID = 42L;
     private TaskRepository repository;
     private TaskService service;
     private PlanRepository plans;
@@ -34,90 +35,90 @@ class TaskServiceTest {
 
     @Test void completionSourceMustBeAnActualAncestor() {
         Task task = saved();
-        when(repository.findById(7)).thenReturn(Optional.of(task));
-        assertFalse(service.isAncestor(7, 1L, null));
+        when(repository.findByIdForOwner(OWNER_ID, 7)).thenReturn(Optional.of(task));
+        assertFalse(service.isAncestor(OWNER_ID, 7, 1L, null));
         task.setLocation(1L, null);
-        assertTrue(service.isAncestor(7, 1L, null));
-        assertFalse(service.isAncestor(7, null, 1L));
+        assertTrue(service.isAncestor(OWNER_ID, 7, 1L, null));
+        assertFalse(service.isAncestor(OWNER_ID, 7, null, 1L));
         task.setLocation(null, 3L);
-        when(subPlans.findById(3L)).thenReturn(Optional.of(new SubPlan(3L, 1L, 2L, "Con", null,
+        when(subPlans.findByIdForOwner(OWNER_ID, 3L)).thenReturn(Optional.of(new SubPlan(3L, 1L, 2L, "Con", null,
                 null, null, 0, task.getCreatedAt())));
-        when(subPlans.findById(2L)).thenReturn(Optional.of(new SubPlan(2L, 1L, null, "Cha", null,
+        when(subPlans.findByIdForOwner(OWNER_ID, 2L)).thenReturn(Optional.of(new SubPlan(2L, 1L, null, "Cha", null,
                 null, null, 0, task.getCreatedAt())));
-        assertTrue(service.isAncestor(7, 1L, null));
-        assertTrue(service.isAncestor(7, null, 2L));
-        assertTrue(service.isAncestor(7, null, 3L));
-        assertFalse(service.isAncestor(7, null, 4L));
-        assertFalse(service.isAncestor(7, 4L, null));
+        assertTrue(service.isAncestor(OWNER_ID, 7, 1L, null));
+        assertTrue(service.isAncestor(OWNER_ID, 7, null, 2L));
+        assertTrue(service.isAncestor(OWNER_ID, 7, null, 3L));
+        assertFalse(service.isAncestor(OWNER_ID, 7, null, 4L));
+        assertFalse(service.isAncestor(OWNER_ID, 7, 4L, null));
     }
 
     @Test void listAndReadDelegateWithoutLoadingProgress() {
-        Task task = saved(); when(repository.findIndependent()).thenReturn(List.of(task));
-        when(repository.findById(7)).thenReturn(Optional.of(task));
-        assertEquals(List.of(task), service.findIndependent()); assertSame(task, service.getById(7));
+        Task task = saved(); when(repository.findIndependentForOwner(OWNER_ID)).thenReturn(List.of(task));
+        when(repository.findByIdForOwner(OWNER_ID, 7)).thenReturn(Optional.of(task));
+        assertEquals(List.of(task), service.findIndependent(OWNER_ID)); assertSame(task, service.getById(OWNER_ID, 7));
     }
 
     @Test void createAllowsDuplicateUnicodeTitlesAndAllOptionalDateCombinations() {
-        when(repository.insert(any())).thenReturn(1L, 2L, 3L, 4L);
+        when(repository.insertForOwner(eq(OWNER_ID), any())).thenReturn(Optional.of(1L), Optional.of(2L), Optional.of(3L), Optional.of(4L));
         String title = "😀".repeat(255);
-        assertEquals(1, service.create(title, "", null, null, 0));
-        assertEquals(2, service.create(title, null, date, null, 0));
-        assertEquals(3, service.create("😀", "Nội dung", null, date, 1));
-        assertEquals(4, service.create("Tên", "", date, date, 2));
-        var captured = ArgumentCaptor.forClass(Task.class); verify(repository, times(4)).insert(captured.capture());
+        assertEquals(1, service.create(OWNER_ID, title, "", null, null, 0));
+        assertEquals(2, service.create(OWNER_ID, title, null, date, null, 0));
+        assertEquals(3, service.create(OWNER_ID, "😀", "Nội dung", null, date, 1));
+        assertEquals(4, service.create(OWNER_ID, "Tên", "", date, date, 2));
+        var captured = ArgumentCaptor.forClass(Task.class); verify(repository, times(4)).insertForOwner(eq(OWNER_ID), captured.capture());
         assertNull(captured.getValue().getPlanId()); assertNull(captured.getValue().getSubPlanId());
         assertEquals("", captured.getValue().getDescription()); assertEquals(2, captured.getValue().getOrderIndex());
     }
 
     @Test void invalidCreateNeverWrites() {
         for (String title : new String[]{null, "", "\u2003", "😀".repeat(256)})
-            assertThrows(IllegalArgumentException.class, () -> service.create(title, null, null, null, 0));
-        assertThrows(IllegalArgumentException.class, () -> service.create("Tên", null, date, date.minusDays(1), 0));
-        assertThrows(IllegalArgumentException.class, () -> service.create("Tên", null, null, null, -1));
+            assertThrows(IllegalArgumentException.class, () -> service.create(OWNER_ID, title, null, null, null, 0));
+        assertThrows(IllegalArgumentException.class, () -> service.create(OWNER_ID, "Tên", null, date, date.minusDays(1), 0));
+        assertThrows(IllegalArgumentException.class, () -> service.create(OWNER_ID, "Tên", null, null, null, -1));
         verifyNoInteractions(repository);
     }
 
     @Test void updateLocksThenReadsAndPreservesLocationAndCreationTime() {
-        Task old = saved(); when(repository.lockTask(7)).thenReturn(true);
-        when(repository.findById(7)).thenReturn(Optional.of(old)); when(repository.update(any())).thenReturn(true);
-        service.update(7, "Mới", "", date, date, 3);
+        Task old = saved(); when(repository.lockTaskForOwner(OWNER_ID, 7)).thenReturn(true);
+        when(repository.findByIdForOwner(OWNER_ID, 7)).thenReturn(Optional.of(old)); when(repository.updateForOwner(eq(OWNER_ID), any())).thenReturn(true);
+        service.update(OWNER_ID, 7, "Mới", "", date, date, 3);
         var captured = ArgumentCaptor.forClass(Task.class); var order = inOrder(repository);
-        order.verify(repository).findById(7); order.verify(repository).lockTask(7); order.verify(repository).findById(7); order.verify(repository).update(captured.capture());
+        order.verify(repository).findByIdForOwner(OWNER_ID, 7); order.verify(repository).lockTaskForOwner(OWNER_ID, 7); order.verify(repository).findByIdForOwner(OWNER_ID, 7); order.verify(repository).updateForOwner(eq(OWNER_ID), captured.capture());
         Task updated = captured.getValue(); assertEquals("Mới", updated.getTitle());
         assertEquals(old.getCreatedAt(), updated.getCreatedAt()); assertEquals(old.getId(), updated.getId());
         assertNull(updated.getPlanId()); assertNull(updated.getSubPlanId());
     }
 
     @Test void invalidUpdateDoesNotWriteOrMutateLoadedObject() {
-        Task old = saved(); when(repository.lockTask(7)).thenReturn(true); when(repository.findById(7)).thenReturn(Optional.of(old));
-        assertThrows(IllegalArgumentException.class, () -> service.update(7, "Mới", "", date, date.minusDays(1), 0));
-        assertThrows(IllegalArgumentException.class, () -> service.update(7, "Mới", "", null, null, -1));
-        assertEquals("Cũ", old.getTitle()); verify(repository, never()).update(any());
+        Task old = saved(); when(repository.lockTaskForOwner(OWNER_ID, 7)).thenReturn(true); when(repository.findByIdForOwner(OWNER_ID, 7)).thenReturn(Optional.of(old));
+        assertThrows(IllegalArgumentException.class, () -> service.update(OWNER_ID, 7, "Mới", "", date, date.minusDays(1), 0));
+        assertThrows(IllegalArgumentException.class, () -> service.update(OWNER_ID, 7, "Mới", "", null, null, -1));
+        assertEquals("Cũ", old.getTitle()); verify(repository, never()).updateForOwner(eq(OWNER_ID), any());
     }
 
     @Test void deleteLocksThenRereadsBeforeDeleting() {
-        when(repository.lockTask(7)).thenReturn(true); when(repository.findById(7)).thenReturn(Optional.of(saved()));
-        when(repository.deleteById(7)).thenReturn(true); service.delete(7);
-        var order = inOrder(repository); order.verify(repository).findById(7); order.verify(repository).lockTask(7); order.verify(repository).findById(7);
-        order.verify(repository).deleteById(7);
+        when(repository.lockTaskForOwner(OWNER_ID, 7)).thenReturn(true); when(repository.findByIdForOwner(OWNER_ID, 7)).thenReturn(Optional.of(saved()));
+        when(repository.deleteByIdForOwner(OWNER_ID, 7)).thenReturn(true); service.delete(OWNER_ID, 7);
+        var order = inOrder(repository); order.verify(repository).findByIdForOwner(OWNER_ID, 7); order.verify(repository).lockTaskForOwner(OWNER_ID, 7); order.verify(repository).findByIdForOwner(OWNER_ID, 7);
+        order.verify(repository).deleteByIdForOwner(OWNER_ID, 7);
         verifyNoInteractions(plans, subPlans);
     }
 
     @Test void invalidIdsAndMissingLockOrRereadReturn404WithoutWrites() {
-        assert404(() -> service.getById(0)); assert404(() -> service.delete(-1));
-        assert404(() -> service.update(0, "Tên", "", null, null, 0)); verifyNoInteractions(repository);
-        assert404(() -> service.getById(99)); assert404(() -> service.delete(99));
-        when(repository.lockTask(7)).thenReturn(true);
-        assert404(() -> service.delete(7)); assert404(() -> service.update(7, "Tên", "", null, null, 0));
-        verify(repository, never()).deleteById(anyLong()); verify(repository, never()).update(any());
+        assert404(() -> service.getById(OWNER_ID, 0)); assert404(() -> service.delete(OWNER_ID, -1));
+        assert404(() -> service.update(OWNER_ID, 0, "Tên", "", null, null, 0)); verifyNoInteractions(repository);
+        assert404(() -> service.getById(OWNER_ID, 99)); assert404(() -> service.delete(OWNER_ID, 99));
+        when(repository.lockTaskForOwner(OWNER_ID, 7)).thenReturn(true);
+        assert404(() -> service.delete(OWNER_ID, 7)); assert404(() -> service.update(OWNER_ID, 7, "Tên", "", null, null, 0));
+        verify(repository, never()).deleteByIdForOwner(eq(OWNER_ID), anyLong()); verify(repository, never()).updateForOwner(eq(OWNER_ID), any());
     }
 
     @Test void zeroAffectedRowsAndDatabaseFailureAreNotSuccess() {
-        when(repository.lockTask(7)).thenReturn(true); when(repository.findById(7)).thenReturn(Optional.of(saved()));
-        assert404(() -> service.update(7, "Tên", "", null, null, 0)); assert404(() -> service.delete(7));
-        var failure = new DataAccessResourceFailureException("DB unavailable"); when(repository.lockTask(8)).thenThrow(failure);
-        Task eighth = saved(); eighth.setId(8L); when(repository.findById(8)).thenReturn(Optional.of(eighth));
-        assertSame(failure, assertThrows(DataAccessResourceFailureException.class, () -> service.delete(8)));
+        when(repository.lockTaskForOwner(OWNER_ID, 7)).thenReturn(true); when(repository.findByIdForOwner(OWNER_ID, 7)).thenReturn(Optional.of(saved()));
+        assert404(() -> service.update(OWNER_ID, 7, "Tên", "", null, null, 0)); assert404(() -> service.delete(OWNER_ID, 7));
+        var failure = new DataAccessResourceFailureException("DB unavailable"); when(repository.lockTaskForOwner(OWNER_ID, 8)).thenThrow(failure);
+        Task eighth = saved(); eighth.setId(8L); when(repository.findByIdForOwner(OWNER_ID, 8)).thenReturn(Optional.of(eighth));
+        assertSame(failure, assertThrows(DataAccessResourceFailureException.class, () -> service.delete(OWNER_ID, 8)));
     }
 
     @Test void springProxyWrapsLockReadWriteInTransactionAndRollsBackFailure() {
@@ -129,13 +130,13 @@ class TaskServiceTest {
         interceptor.setTransactionAttributeSource(new org.springframework.transaction.annotation.AnnotationTransactionAttributeSource());
         var factory = new org.springframework.aop.framework.ProxyFactory(service); factory.addAdvice(interceptor);
         TaskService proxy = (TaskService) factory.getProxy();
-        when(repository.lockTask(7)).thenReturn(true); when(repository.findById(7)).thenReturn(Optional.of(saved()));
-        when(repository.update(any())).thenReturn(true);
-        proxy.update(7, "Mới", "", null, null, 0);
+        when(repository.lockTaskForOwner(OWNER_ID, 7)).thenReturn(true); when(repository.findByIdForOwner(OWNER_ID, 7)).thenReturn(Optional.of(saved()));
+        when(repository.updateForOwner(eq(OWNER_ID), any())).thenReturn(true);
+        proxy.update(OWNER_ID, 7, "Mới", "", null, null, 0);
         var order = inOrder(manager, repository); order.verify(manager).getTransaction(any());
-        order.verify(repository).findById(7); order.verify(repository).lockTask(7); order.verify(repository).findById(7); order.verify(repository).update(any());
+        order.verify(repository).findByIdForOwner(OWNER_ID, 7); order.verify(repository).lockTaskForOwner(OWNER_ID, 7); order.verify(repository).findByIdForOwner(OWNER_ID, 7); order.verify(repository).updateForOwner(eq(OWNER_ID), any());
         order.verify(manager).commit(status);
-        assert404(() -> proxy.delete(8)); verify(manager).rollback(status);
+        assert404(() -> proxy.delete(OWNER_ID, 8)); verify(manager).rollback(status);
     }
 
     private void assert404(org.junit.jupiter.api.function.Executable call) {
@@ -147,70 +148,70 @@ class TaskServiceTest {
     }
 
     @Test void createAtEitherParentLocksPlanAndAllowsDatesOutsideParent() {
-        when(subPlans.lockPlan(1)).thenReturn(true); when(subPlans.findById(2)).thenReturn(Optional.of(parent()));
-        when(repository.insert(any())).thenReturn(10L, 11L);
-        assertEquals(10, service.create(1L, null, "Plan Task", "", date.minusDays(9), null, 0));
-        assertEquals(11, service.create(null, 2L, "SubPlan Task", "", null, date.plusDays(9), 0));
-        var captured = ArgumentCaptor.forClass(Task.class); verify(repository, times(2)).insert(captured.capture());
+        when(subPlans.lockPlanForOwner(OWNER_ID, 1)).thenReturn(true); when(subPlans.findByIdForOwner(OWNER_ID, 2)).thenReturn(Optional.of(parent()));
+        when(repository.insertForOwner(eq(OWNER_ID), any())).thenReturn(Optional.of(10L), Optional.of(11L));
+        assertEquals(10, service.create(OWNER_ID, 1L, null, "Plan Task", "", date.minusDays(9), null, 0));
+        assertEquals(11, service.create(OWNER_ID, null, 2L, "SubPlan Task", "", null, date.plusDays(9), 0));
+        var captured = ArgumentCaptor.forClass(Task.class); verify(repository, times(2)).insertForOwner(eq(OWNER_ID), captured.capture());
         assertEquals(1L, captured.getAllValues().get(0).getPlanId()); assertNull(captured.getAllValues().get(0).getSubPlanId());
         assertNull(captured.getValue().getPlanId()); assertEquals(2L, captured.getValue().getSubPlanId());
         assertEquals(date.plusDays(9), captured.getValue().getEndDate());
-        verify(subPlans, times(2)).lockPlan(1); verify(repository, never()).lockTask(anyLong());
+        verify(subPlans, times(2)).lockPlanForOwner(OWNER_ID, 1); verify(repository, never()).lockTaskForOwner(eq(OWNER_ID), anyLong());
     }
 
     @Test void invalidOrDisappearingParentsNeverInsert() {
-        assertThrows(IllegalArgumentException.class, () -> service.create(1L, 2L, "Tên", "", null, null, 0));
-        assertThrows(IllegalArgumentException.class, () -> service.create(0L, null, "Tên", "", null, null, 0));
+        assertThrows(IllegalArgumentException.class, () -> service.create(OWNER_ID, 1L, 2L, "Tên", "", null, null, 0));
+        assertThrows(IllegalArgumentException.class, () -> service.create(OWNER_ID, 0L, null, "Tên", "", null, null, 0));
         verifyNoInteractions(repository, subPlans, plans);
-        assert404(() -> service.create(99L, null, "Tên", "", null, null, 0));
-        assert404(() -> service.create(null, 99L, "Tên", "", null, null, 0));
-        when(subPlans.findById(2)).thenReturn(Optional.of(parent()), Optional.empty());
-        when(subPlans.lockPlan(1)).thenReturn(true);
-        assert404(() -> service.create(null, 2L, "Tên", "", null, null, 0));
-        verify(repository, never()).insert(any());
+        assert404(() -> service.create(OWNER_ID, 99L, null, "Tên", "", null, null, 0));
+        assert404(() -> service.create(OWNER_ID, null, 99L, "Tên", "", null, null, 0));
+        when(subPlans.findByIdForOwner(OWNER_ID, 2)).thenReturn(Optional.of(parent()), Optional.empty());
+        when(subPlans.lockPlanForOwner(OWNER_ID, 1)).thenReturn(true);
+        assert404(() -> service.create(OWNER_ID, null, 2L, "Tên", "", null, null, 0));
+        verify(repository, never()).insertForOwner(eq(OWNER_ID), any());
     }
 
     @Test void treeUpdateLocksPlanBeforeTaskAndRereadsBothSubPlanAndTask() {
         Task task = saved(); task.setLocation(null, 2L);
-        when(repository.findById(7)).thenReturn(Optional.of(task)); when(repository.lockTask(7)).thenReturn(true);
-        when(subPlans.findById(2)).thenReturn(Optional.of(parent())); when(subPlans.lockPlan(1)).thenReturn(true);
-        when(repository.update(any())).thenReturn(true);
-        service.update(7, "Mới", "", date.minusDays(3), null, 0);
+        when(repository.findByIdForOwner(OWNER_ID, 7)).thenReturn(Optional.of(task)); when(repository.lockTaskForOwner(OWNER_ID, 7)).thenReturn(true);
+        when(subPlans.findByIdForOwner(OWNER_ID, 2)).thenReturn(Optional.of(parent())); when(subPlans.lockPlanForOwner(OWNER_ID, 1)).thenReturn(true);
+        when(repository.updateForOwner(eq(OWNER_ID), any())).thenReturn(true);
+        service.update(OWNER_ID, 7, "Mới", "", date.minusDays(3), null, 0);
         var order = inOrder(repository, subPlans);
-        order.verify(repository).findById(7); order.verify(subPlans).findById(2); order.verify(subPlans).lockPlan(1);
-        order.verify(subPlans).findById(2); order.verify(repository).lockTask(7); order.verify(repository).findById(7);
-        order.verify(repository).update(argThat(value -> value.getPlanId() == null && Long.valueOf(2).equals(value.getSubPlanId())));
+        order.verify(repository).findByIdForOwner(OWNER_ID, 7); order.verify(subPlans).findByIdForOwner(OWNER_ID, 2); order.verify(subPlans).lockPlanForOwner(OWNER_ID, 1);
+        order.verify(subPlans).findByIdForOwner(OWNER_ID, 2); order.verify(repository).lockTaskForOwner(OWNER_ID, 7); order.verify(repository).findByIdForOwner(OWNER_ID, 7);
+        order.verify(repository).updateForOwner(eq(OWNER_ID), argThat(value -> value.getPlanId() == null && Long.valueOf(2).equals(value.getSubPlanId())));
     }
 
     @Test void planTaskDeleteLocksPlanThenTaskAndKeepsMissingRowsAs404() {
         Task task = saved(); task.setLocation(1L, null);
-        when(repository.findById(7)).thenReturn(Optional.of(task)); when(subPlans.lockPlan(1)).thenReturn(true);
-        when(repository.lockTask(7)).thenReturn(true); when(repository.deleteById(7)).thenReturn(true);
-        service.delete(7);
+        when(repository.findByIdForOwner(OWNER_ID, 7)).thenReturn(Optional.of(task)); when(subPlans.lockPlanForOwner(OWNER_ID, 1)).thenReturn(true);
+        when(repository.lockTaskForOwner(OWNER_ID, 7)).thenReturn(true); when(repository.deleteByIdForOwner(OWNER_ID, 7)).thenReturn(true);
+        service.delete(OWNER_ID, 7);
         var order = inOrder(repository, subPlans);
-        order.verify(repository).findById(7); order.verify(subPlans).lockPlan(1);
-        order.verify(repository).lockTask(7); order.verify(repository).findById(7); order.verify(repository).deleteById(7);
+        order.verify(repository).findByIdForOwner(OWNER_ID, 7); order.verify(subPlans).lockPlanForOwner(OWNER_ID, 1);
+        order.verify(repository).lockTaskForOwner(OWNER_ID, 7); order.verify(repository).findByIdForOwner(OWNER_ID, 7); order.verify(repository).deleteByIdForOwner(OWNER_ID, 7);
         clearInvocations(repository, subPlans);
-        when(subPlans.lockPlan(1)).thenReturn(false);
-        assert404(() -> service.delete(7)); verify(repository, never()).lockTask(anyLong()); verify(repository, never()).deleteById(anyLong());
+        when(subPlans.lockPlanForOwner(OWNER_ID, 1)).thenReturn(false);
+        assert404(() -> service.delete(OWNER_ID, 7)); verify(repository, never()).lockTaskForOwner(eq(OWNER_ID), anyLong()); verify(repository, never()).deleteByIdForOwner(eq(OWNER_ID), anyLong());
     }
 
     @Test void changedLocationOrMissingRereadAfterTaskLockNeverWrites() {
         Task before = saved(); before.setLocation(1L, null);
-        when(subPlans.lockPlan(1)).thenReturn(true); when(repository.lockTask(7)).thenReturn(true);
-        when(repository.findById(7)).thenReturn(Optional.of(before), Optional.of(saved()));
-        assert404(() -> service.update(7, "Tên", "", null, null, 0));
-        when(repository.findById(7)).thenReturn(Optional.of(before), Optional.empty());
-        assert404(() -> service.delete(7));
-        verify(repository, never()).update(any()); verify(repository, never()).deleteById(anyLong());
+        when(subPlans.lockPlanForOwner(OWNER_ID, 1)).thenReturn(true); when(repository.lockTaskForOwner(OWNER_ID, 7)).thenReturn(true);
+        when(repository.findByIdForOwner(OWNER_ID, 7)).thenReturn(Optional.of(before), Optional.of(saved()));
+        assert404(() -> service.update(OWNER_ID, 7, "Tên", "", null, null, 0));
+        when(repository.findByIdForOwner(OWNER_ID, 7)).thenReturn(Optional.of(before), Optional.empty());
+        assert404(() -> service.delete(OWNER_ID, 7));
+        verify(repository, never()).updateForOwner(eq(OWNER_ID), any()); verify(repository, never()).deleteByIdForOwner(eq(OWNER_ID), anyLong());
     }
 
     @Test void scopedListsValidateParentsAndOnlyUseMatchingQuery() {
-        when(plans.findById(1)).thenReturn(Optional.of(new Plan("Plan")));
-        when(subPlans.findById(2)).thenReturn(Optional.of(parent()));
-        Task task = saved(); when(repository.findByPlanId(1)).thenReturn(List.of(task));
-        assertEquals(List.of(task), service.findByPlanId(1)); assertEquals(List.of(), service.findBySubPlanId(2));
-        assert404(() -> service.findByPlanId(99)); assert404(() -> service.findBySubPlanId(99));
-        verify(repository, never()).findByPlanId(99); verify(repository, never()).findBySubPlanId(99);
+        when(plans.findByIdForOwner(OWNER_ID, 1)).thenReturn(Optional.of(new Plan("Plan")));
+        when(subPlans.findByIdForOwner(OWNER_ID, 2)).thenReturn(Optional.of(parent()));
+        Task task = saved(); when(repository.findByPlanIdForOwner(OWNER_ID, 1)).thenReturn(List.of(task));
+        assertEquals(List.of(task), service.findByPlanId(OWNER_ID, 1)); assertEquals(List.of(), service.findBySubPlanId(OWNER_ID, 2));
+        assert404(() -> service.findByPlanId(OWNER_ID, 99)); assert404(() -> service.findBySubPlanId(OWNER_ID, 99));
+        verify(repository, never()).findByPlanIdForOwner(OWNER_ID, 99); verify(repository, never()).findBySubPlanIdForOwner(OWNER_ID, 99);
     }
 }

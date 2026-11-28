@@ -28,81 +28,90 @@ public class SubPlanService {
         this.plans = plans;
     }
 
-    public Plan getPlan(long planId) {
+    public Plan getPlan(long ownerId, long planId) {
+        OwnerScope.require(ownerId);
         if (planId <= 0) throw notFound("Plan", planId);
-        return plans.findById(planId).orElseThrow(() -> notFound("Plan", planId));
+        return plans.findByIdForOwner(ownerId, planId).orElseThrow(() -> notFound("Plan", planId));
     }
 
-    public List<SubPlan> findByPlanId(long planId) {
-        getPlan(planId);
-        return repository.findByPlanId(planId);
+    public List<SubPlan> findByPlanId(long ownerId, long planId) {
+        OwnerScope.require(ownerId);
+        getPlan(ownerId, planId);
+        return repository.findByPlanIdForOwner(ownerId, planId);
     }
 
-    public SubPlan getById(long id) {
+    public SubPlan getById(long ownerId, long id) {
+        OwnerScope.require(ownerId);
         if (id <= 0) throw notFound("SubPlan", id);
-        return repository.findById(id).orElseThrow(() -> notFound("SubPlan", id));
+        return repository.findByIdForOwner(ownerId, id).orElseThrow(() -> notFound("SubPlan", id));
     }
 
     @Transactional
-    public long create(long planId, Long parentId, String title, String description,
+    public long create(long ownerId, long planId, Long parentId, String title, String description,
                        LocalDate startDate, LocalDate endDate, int orderIndex) {
-        lockPlan(planId);
+        OwnerScope.require(ownerId);
+        lockPlan(ownerId, planId);
         validateInput(parentId, title, startDate, endDate, orderIndex);
         SubPlan proposed = new SubPlan(null, planId, parentId, title, blankToNull(description),
                 startDate, endDate, orderIndex, OffsetDateTime.now());
-        Map<Long, SubPlan> tree = readHierarchy(planId);
+        Map<Long, SubPlan> tree = readHierarchy(ownerId, planId);
         // Khóa tạm chỉ dùng để kiểm tra cây trước INSERT, không lưu vào model/DB.
         tree.put(-1L, proposed);
         validateHierarchy(tree);
-        return repository.insert(proposed);
+        return repository.insertForOwner(ownerId, proposed).orElseThrow(() -> notFound("Plan", planId));
     }
 
     @Transactional
-    public void update(long id, Long parentId, String title, String description,
+    public void update(long ownerId, long id, Long parentId, String title, String description,
                        LocalDate startDate, LocalDate endDate, int orderIndex) {
-        SubPlan current = getById(id);
-        lockPlan(current.getPlanId());
-        current = getById(id); // Đọc lại sau khi lấy khóa.
+        OwnerScope.require(ownerId);
+        SubPlan current = getById(ownerId, id);
+        lockPlan(ownerId, current.getPlanId());
+        current = getById(ownerId, id); // Đọc lại sau khi lấy khóa.
         validateInput(parentId, title, startDate, endDate, orderIndex);
         if (Long.valueOf(id).equals(parentId)) {
             throw new InputException("parentSubPlanId", "SubPlan không thể làm cha của chính nó");
         }
         SubPlan proposed = new SubPlan(id, current.getPlanId(), parentId, title,
                 blankToNull(description), startDate, endDate, orderIndex, current.getCreatedAt());
-        Map<Long, SubPlan> tree = readHierarchy(current.getPlanId());
+        Map<Long, SubPlan> tree = readHierarchy(ownerId, current.getPlanId());
         tree.put(id, proposed);
         // Kiểm tra cả cây sau thay đổi: tính cả độ sâu của các con khi chuyển nhánh.
         validateHierarchy(tree);
-        if (!repository.update(proposed)) throw notFound("SubPlan", id);
+        if (!repository.updateForOwner(ownerId, proposed)) throw notFound("SubPlan", id);
     }
 
     @Transactional
-    public long delete(long id) {
-        SubPlan current = getById(id);
-        lockPlan(current.getPlanId());
-        if (!repository.deleteById(id)) throw notFound("SubPlan", id);
+    public long delete(long ownerId, long id) {
+        OwnerScope.require(ownerId);
+        SubPlan current = getById(ownerId, id);
+        lockPlan(ownerId, current.getPlanId());
+        current = getById(ownerId, id);
+        if (!repository.deleteByIdForOwner(ownerId, id)) throw notFound("SubPlan", id);
         return current.getPlanId();
     }
 
-    public List<SubPlan> getDirectChildren(SubPlan subPlan) {
-        return repository.findByPlanId(subPlan.getPlanId()).stream()
+    public List<SubPlan> getDirectChildren(long ownerId, SubPlan subPlan) {
+        OwnerScope.require(ownerId);
+        return repository.findByPlanIdForOwner(ownerId, subPlan.getPlanId()).stream()
                 .filter(child -> subPlan.getId().equals(child.getParentSubPlanId())).toList();
     }
 
     // Cảnh báo không chặn lưu. So sánh các mốc có giá trị, không bắt buộc đủ cả hai ngày.
-    public List<String> getDateWarnings(SubPlan subPlan) {
+    public List<String> getDateWarnings(long ownerId, SubPlan subPlan) {
+        OwnerScope.require(ownerId);
         LocalDate parentStart;
         LocalDate parentEnd;
         if (subPlan.getParentSubPlanId() == null) {
-            Plan parent = getPlan(subPlan.getPlanId());
+            Plan parent = getPlan(ownerId, subPlan.getPlanId());
             parentStart = parent.getStartDate();
             parentEnd = parent.getEndDate();
         } else {
-            SubPlan parent = getById(subPlan.getParentSubPlanId());
+            SubPlan parent = getById(ownerId, subPlan.getParentSubPlanId());
             parentStart = parent.getStartDate();
             parentEnd = parent.getEndDate();
         }
-        return dateWarnings(subPlan,parentStart,parentEnd,getDirectChildren(subPlan));
+        return dateWarnings(subPlan,parentStart,parentEnd,getDirectChildren(ownerId, subPlan));
     }
 
     // Bản chỉ đọc bộ nhớ để cảnh báo và tiến độ dùng cùng metadata snapshot.
@@ -133,13 +142,13 @@ public class SubPlanService {
                 || (end != null && date.isAfter(end)));
     }
 
-    private void lockPlan(long planId) {
-        if (planId <= 0 || !repository.lockPlan(planId)) throw notFound("Plan", planId);
+    private void lockPlan(long ownerId, long planId) {
+        if (planId <= 0 || !repository.lockPlanForOwner(ownerId, planId)) throw notFound("Plan", planId);
     }
 
-    private Map<Long, SubPlan> readHierarchy(long planId) {
+    private Map<Long, SubPlan> readHierarchy(long ownerId, long planId) {
         Map<Long, SubPlan> tree = new HashMap<>();
-        for (SubPlan item : repository.findByPlanId(planId)) tree.put(item.getId(), item);
+        for (SubPlan item : repository.findByPlanIdForOwner(ownerId, planId)) tree.put(item.getId(), item);
         return tree;
     }
 
@@ -190,4 +199,5 @@ public class SubPlanService {
         }
         public String getField() { return field; }
     }
+
 }

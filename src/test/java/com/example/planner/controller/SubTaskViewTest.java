@@ -25,7 +25,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringJUnitWebConfig(SubTaskViewTest.Config.class)
-class SubTaskViewTest {
+class SubTaskViewTest extends AuthenticatedControllerTest {
     @Autowired WebApplicationContext context;
     @Autowired SubTaskService service;
     @Autowired TaskService tasks;
@@ -46,10 +46,10 @@ class SubTaskViewTest {
     }
     @BeforeEach void setUp() {
         reset(service,tasks,trees); mvc=MockMvcBuilders.webAppContextSetup(context).build();
-        Task task=new Task("Cha"); task.setId(7L); when(tasks.getById(7)).thenReturn(task);
+        Task task=new Task("Cha"); task.setId(7L); when(tasks.getById(OWNER_ID, 7)).thenReturn(task);
         SubTask leaf=new SubTask(9L,7L,"Lá <script>x</script>","<b>Mô tả</b>",null,false,null,0,OffsetDateTime.now());
-        when(service.getById(9)).thenReturn(leaf); when(service.findByTaskId(7)).thenReturn(List.of(leaf));
-        task.addSubTask(leaf); when(trees.loadTask(7)).thenReturn(new PlanTreeService.TaskSnapshot(task,null,null));
+        when(service.getById(OWNER_ID, 9)).thenReturn(leaf); when(service.findByTaskId(OWNER_ID, 7)).thenReturn(List.of(leaf));
+        task.addSubTask(leaf); when(trees.loadTask(OWNER_ID, 7)).thenReturn(new PlanTreeService.TaskSnapshot(task,null,null));
     }
     @Test void listEscapesAndShowsScopedLinksEmptyStateAndMissingTask() throws Exception {
         mvc.perform(get("/subtasks").param("taskId","7")).andExpect(status().isOk())
@@ -58,8 +58,8 @@ class SubTaskViewTest {
                 .andExpect(content().string(containsString("method=\"post\" action=\"/subtasks/9/completion\"")))
                 .andExpect(content().string(containsString("name=\"source\" value=\"subtasks\"")))
                 .andExpect(content().string(containsString("href=\"/subtasks/new?taskId=7\"")));
-        when(service.findByTaskId(7)).thenReturn(List.of());
-        Task empty=new Task("Cha"); empty.setId(7L); when(trees.loadTask(7)).thenReturn(new PlanTreeService.TaskSnapshot(empty,null,null));
+        when(service.findByTaskId(OWNER_ID, 7)).thenReturn(List.of());
+        Task empty=new Task("Cha"); empty.setId(7L); when(trees.loadTask(OWNER_ID, 7)).thenReturn(new PlanTreeService.TaskSnapshot(empty,null,null));
         mvc.perform(get("/subtasks").param("taskId","7")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("Chưa có SubTask")));
         mvc.perform(get("/subtasks")).andExpect(status().isOk()).andExpect(content().string(containsString("Chọn một Task")));
@@ -86,7 +86,7 @@ class SubTaskViewTest {
                 .andExpect(content().string(containsString("value=\"oops\"")))
                 .andExpect(content().string(containsString("&lt;img&gt;")))
                 .andExpect(content().string(containsString("&lt;script&gt;x&lt;/script&gt;")));
-        verify(service,never()).create(anyLong(),any(),any(),any(),anyInt());
+        verify(service,never()).create(eq(OWNER_ID), anyLong(),any(),any(),any(),anyInt());
     }
     @Test void detailHasTaskLinkStatusAndOnlySingleLeafDeleteConfirmation() throws Exception {
         mvc.perform(get("/subtasks/9").flashAttr("message","Đã lưu"))
@@ -101,16 +101,16 @@ class SubTaskViewTest {
     }
 
     @Test void completedLeafOffersUndoEvenWhenProgressIsUnavailable() throws Exception {
-        SubTask leaf = service.getById(9);
+        SubTask leaf = service.getById(OWNER_ID, 9);
         leaf.markDone();
-        when(trees.loadTask(7)).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("DB"));
+        when(trees.loadTask(OWNER_ID, 7)).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("DB"));
         mvc.perform(get("/subtasks/9")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("Chưa có tiến độ khả dụng")))
                 .andExpect(content().string(containsString("name=\"done\" value=\"false\"")))
                 .andExpect(content().string(containsString("Bỏ đánh dấu hoàn thành")));
     }
     @Test void createEditFlashRenderAfterPrg() throws Exception {
-        when(service.create(7,"Tên","",null,0)).thenReturn(9L);
+        when(service.create(OWNER_ID, 7,"Tên","",null,0)).thenReturn(9L);
         var created=mvc.perform(post("/subtasks").param("taskId","7").param("title","Tên"))
                 .andExpect(redirectedUrl("/subtasks/9")).andReturn();
         mvc.perform(get("/subtasks/9").flashAttrs(created.getFlashMap())).andExpect(status().isOk())

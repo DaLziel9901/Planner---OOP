@@ -13,9 +13,10 @@ import com.example.planner.service.PlanService;
 import com.example.planner.service.ProgressPresentation;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -40,17 +41,18 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@EnabledIfEnvironmentVariable(named = "TEST_DB_URL", matches = ".+")
 @SpringJUnitConfig({PostgresTreeTest.Config.class, PlanTreeIntegrationTest.ReadConfig.class})
 class PlanTreeIntegrationTest extends PostgresTreeTest {
-    @Configuration(proxyBeanMethods = false)
+    @TestConfiguration(proxyBeanMethods = false)
     static class ReadConfig {
         @Bean
         @Primary
         TaskRepository observedTasks(JdbcTemplate jdbc, ReadProbe probe) {
             return new TaskRepository(jdbc) {
                 @Override
-                public List<Task> findByPlanIds(Collection<Long> ids) {
-                    var rows = super.findByPlanIds(ids);
+                public List<Task> findByPlanIdsForOwner(long ownerId, Collection<Long> ids) {
+                    var rows = super.findByPlanIdsForOwner(ownerId, ids);
                     probe.afterTasks.run();
                     return rows;
                 }
@@ -62,9 +64,9 @@ class PlanTreeIntegrationTest extends PostgresTreeTest {
         SubTaskRepository observedLeaves(JdbcTemplate jdbc, ReadProbe probe) {
             return new SubTaskRepository(jdbc) {
                 @Override
-                public List<SubTask> findByTaskIds(Collection<Long> ids) {
+                public List<SubTask> findByTaskIdsForOwner(long ownerId, Collection<Long> ids) {
                     probe.leafReads.incrementAndGet();
-                    return super.findByTaskIds(ids);
+                    return super.findByTaskIdsForOwner(ownerId, ids);
                 }
             };
         }
@@ -94,19 +96,19 @@ class PlanTreeIntegrationTest extends PostgresTreeTest {
     void persistedLeavesDetermineProgressAcrossFiveLevels() {
         long planId = plan();
         long direct = task(planId, null);
-        assertEmpty(trees.loadPlan(planId).plan());
-        assertEmpty(trees.loadTask(direct).task());
+        assertEmpty(trees.loadPlan(ownerId, planId).plan());
+        assertEmpty(trees.loadTask(ownerId, direct).task());
         long first = leaf(direct);
         long second = leaf(direct);
-        assertProgress(trees.loadTask(direct).task(), 0, 2, "0%");
-        leafService.setCompletion(first, true);
-        assertProgress(trees.loadTask(direct).task(), 1, 2, "50%");
-        leafService.setCompletion(second, true);
-        assertProgress(trees.loadTask(direct).task(), 2, 2, "100%");
-        leafService.setCompletion(second, false);
-        assertNull(leafService.getById(second).getCompletedAt());
-        assertProgress(trees.loadTask(direct).task(), 1, 2, "50%");
-        leafService.delete(second);
+        assertProgress(trees.loadTask(ownerId, direct).task(), 0, 2, "0%");
+        leafService.setCompletion(ownerId, first, true);
+        assertProgress(trees.loadTask(ownerId, direct).task(), 1, 2, "50%");
+        leafService.setCompletion(ownerId, second, true);
+        assertProgress(trees.loadTask(ownerId, direct).task(), 2, 2, "100%");
+        leafService.setCompletion(ownerId, second, false);
+        assertNull(leafService.getById(ownerId, second).getCompletedAt());
+        assertProgress(trees.loadTask(ownerId, direct).task(), 1, 2, "50%");
+        leafService.delete(ownerId, second);
 
         Long parent = null;
         var branchIds = new ArrayList<Long>();
@@ -119,32 +121,32 @@ class PlanTreeIntegrationTest extends PostgresTreeTest {
         long nestedSecond = leaf(nested);
         task(planId, null);
         long independent = task(null, null);
-        leafService.setCompletion(leaf(independent), true);
+        leafService.setCompletion(ownerId, leaf(independent), true);
 
-        assertProgress(trees.loadPlan(planId).plan(), 1, 3, "33,33%");
+        assertProgress(trees.loadPlan(ownerId, planId).plan(), 1, 3, "33,33%");
         long nestedThird = leaf(nested);
-        var snapshot = trees.loadPlan(planId);
+        var snapshot = trees.loadPlan(ownerId, planId);
         assertProgress(snapshot.plan(), 1, 4, "25%");
         assertEquals(branchIds, snapshot.subPlans().stream().map(SubPlan::getId).toList());
         assertEquals(3, snapshot.plan().getChildren().size());
-        assertProgress(trees.loadTask(independent).task(), 1, 1, "100%");
+        assertProgress(trees.loadTask(ownerId, independent).task(), 1, 1, "100%");
 
-        leafService.setCompletion(nestedFirst, true);
-        assertProgress(trees.loadTask(nested).task(), 1, 3, "33,33%");
-        leafService.setCompletion(nestedSecond, true);
-        assertProgress(trees.loadTask(nested).task(), 2, 3, "66,67%");
-        var refreshed = trees.loadPlan(planId);
+        leafService.setCompletion(ownerId, nestedFirst, true);
+        assertProgress(trees.loadTask(ownerId, nested).task(), 1, 3, "33,33%");
+        leafService.setCompletion(ownerId, nestedSecond, true);
+        assertProgress(trees.loadTask(ownerId, nested).task(), 2, 3, "66,67%");
+        var refreshed = trees.loadPlan(ownerId, planId);
         assertProgress(refreshed.plan(), 3, 4, "75%");
         for (SubPlan node : refreshed.subPlans()) assertProgress(node, 2, 3, "66,67%");
         assertProgress(snapshot.plan(), 1, 4, "25%");
 
-        leafService.delete(first);
-        leafService.delete(nestedFirst);
-        leafService.delete(nestedSecond);
-        leafService.delete(nestedThird);
-        assertEmpty(trees.loadTask(direct).task());
-        assertEmpty(trees.loadSubPlan(parent).subPlan());
-        assertEmpty(trees.loadPlan(planId).plan());
+        leafService.delete(ownerId, first);
+        leafService.delete(ownerId, nestedFirst);
+        leafService.delete(ownerId, nestedSecond);
+        leafService.delete(ownerId, nestedThird);
+        assertEmpty(trees.loadTask(ownerId, direct).task());
+        assertEmpty(trees.loadSubPlan(ownerId, parent).subPlan());
+        assertEmpty(trees.loadPlan(ownerId, planId).plan());
     }
 
     @Test
@@ -196,13 +198,13 @@ class PlanTreeIntegrationTest extends PostgresTreeTest {
         };
 
         try {
-            var result = executor.submit(() -> trees.loadPlan(planId));
+            var result = executor.submit(() -> trees.loadPlan(ownerId, planId));
             await(taskRowsRead);
             new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
                 jdbc.execute("SET LOCAL statement_timeout = '5s'");
                 assertNotEquals(readerPid.get(), backendPid());
-                taskService.update(taskId, "Committed title", null, null, null, 0);
-                leafService.setCompletion(leafId, true);
+                taskService.update(ownerId, taskId, "Committed title", null, null, null, 0);
+                leafService.setCompletion(ownerId, leafId, true);
             });
             writerCommitted.countDown();
 
@@ -210,7 +212,7 @@ class PlanTreeIntegrationTest extends PostgresTreeTest {
             assertProgress(original, 0, 1, "0%");
             assertEquals("JUnit task", original.getChildren().get(0).getName());
             probe.afterTasks = () -> {};
-            var current = trees.loadPlan(planId).plan();
+            var current = trees.loadPlan(ownerId, planId).plan();
             assertProgress(current, 1, 1, "100%");
             assertEquals("Committed title", current.getChildren().get(0).getName());
         } finally {
@@ -238,7 +240,7 @@ class PlanTreeIntegrationTest extends PostgresTreeTest {
         };
 
         // Verify the SQL error exits the proxy, then exercise the actual controller fallback.
-        assertThrows(DataAccessException.class, () -> trees.loadPlan(planId));
+        assertThrows(DataAccessException.class, () -> trees.loadPlan(ownerId, planId));
         assertEquals(TransactionSynchronization.STATUS_ROLLED_BACK, completion.getAndSet(-1));
         var model = new ExtendedModelMap();
         assertEquals("plans/detail", new PlanController(planService, trees).detail(planId, model));
@@ -251,7 +253,7 @@ class PlanTreeIntegrationTest extends PostgresTreeTest {
         assertTrue(((PlanNode) model.getAttribute("plan")).getChildren().isEmpty());
 
         probe.afterTasks = () -> {};
-        assertProgress(trees.loadPlan(planId).plan(), 0, 1, "0%");
+        assertProgress(trees.loadPlan(ownerId, planId).plan(), 0, 1, "0%");
     }
 
     private static void await(CountDownLatch latch) {

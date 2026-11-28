@@ -3,8 +3,12 @@
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Danh sách kế hoạch</title></head>
 <body><main>
     <h1>Danh sách kế hoạch</h1>
+    <p th:if="${currentUser}" th:text="${currentUser.username}"></p>
+    <form th:if="${currentUser}" method="post" th:action="@{/logout}">
+        <button>Đăng xuất</button>
+    </form>
     <p th:if="${message}" th:text="${message}" role="status"></p>
-    <p><a th:href="@{/plans/new}">Thêm Plan</a> | <a th:href="@{/subplans}">Quản lý SubPlan</a> | <a th:href="@{/tasks}">Task độc lập</a></p>
+    <p><a th:href="@{/plans/new}">Thêm Plan</a> | <a th:href="@{/subplans}">Quản lý SubPlan</a> | <a th:href="@{/tasks}">Task độc lập</a> | <a th:href="@{/ai/plans/new}">Tạo kế hoạch bằng AI</a></p>
     <p th:if="${#lists.isEmpty(plans)}">Chưa có kế hoạch. Chọn Thêm Plan để bắt đầu.</p>
     <table th:unless="${#lists.isEmpty(plans)}">
         <thead><tr><th>ID</th><th>Tên</th><th>Mục tiêu</th><th>Ngày bắt đầu</th><th>Ngày kết thúc</th><th>Tiến độ</th><th>Thao tác</th></tr></thead>

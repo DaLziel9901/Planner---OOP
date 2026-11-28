@@ -19,6 +19,7 @@ import static org.mockito.Mockito.*;
 
 // Unit test: repository giả, không kết nối PostgreSQL.
 class PlanServiceTest {
+    private static final long OWNER_ID = 42L;
     private PlanRepository repository;
     private PlanService service;
     private SubPlanRepository locks;
@@ -33,18 +34,18 @@ class PlanServiceTest {
     @Test
     void listAndReadReturnRepositoryData() {
         Plan plan = new Plan("TOEIC");
-        when(repository.findAll()).thenReturn(List.of(plan));
-        when(repository.findById(1L)).thenReturn(Optional.of(plan));
-        assertEquals(List.of(plan), service.findAll());
-        assertSame(plan, service.getById(1L));
+        when(repository.findAllForOwner(OWNER_ID)).thenReturn(List.of(plan));
+        when(repository.findByIdForOwner(OWNER_ID, 1L)).thenReturn(Optional.of(plan));
+        assertEquals(List.of(plan), service.findAll(OWNER_ID));
+        assertSame(plan, service.getById(OWNER_ID, 1L));
     }
 
     @Test
     void createReturnsGeneratedIdAndAllowsOptionalFields() {
-        when(repository.insert(any(Plan.class))).thenReturn(12L);
-        assertEquals(12L, service.create("TOEIC", "  ", null, null));
+        when(repository.insertForOwner(eq(OWNER_ID), any(Plan.class))).thenReturn(12L);
+        assertEquals(12L, service.create(OWNER_ID, "TOEIC", "  ", null, null));
         ArgumentCaptor<Plan> captured = ArgumentCaptor.forClass(Plan.class);
-        verify(repository).insert(captured.capture());
+        verify(repository).insertForOwner(eq(OWNER_ID), captured.capture());
         assertEquals("TOEIC", captured.getValue().getTitle());
         assertNull(captured.getValue().getGoal());
         assertNull(captured.getValue().getStartDate());
@@ -54,12 +55,12 @@ class PlanServiceTest {
 
     @Test
     void createPreservesGoalAndDatesAndAllowsDuplicateNames() {
-        when(repository.insert(any(Plan.class))).thenReturn(1L, 2L);
+        when(repository.insertForOwner(eq(OWNER_ID), any(Plan.class))).thenReturn(1L, 2L);
         LocalDate date = LocalDate.of(2026, 11, 1);
-        assertEquals(1L, service.create("TOEIC", "730+", date, date));
-        assertEquals(2L, service.create("TOEIC", "730+", date, date));
+        assertEquals(1L, service.create(OWNER_ID, "TOEIC", "730+", date, date));
+        assertEquals(2L, service.create(OWNER_ID, "TOEIC", "730+", date, date));
         ArgumentCaptor<Plan> captured = ArgumentCaptor.forClass(Plan.class);
-        verify(repository, times(2)).insert(captured.capture());
+        verify(repository, times(2)).insertForOwner(eq(OWNER_ID), captured.capture());
         assertEquals("730+", captured.getValue().getGoal());
         assertEquals(date, captured.getValue().getStartDate());
         assertEquals(date, captured.getValue().getEndDate());
@@ -68,10 +69,10 @@ class PlanServiceTest {
     @Test
     void invalidInputNeverReachesInsert() {
         LocalDate date = LocalDate.of(2026, 11, 1);
-        assertThrows(IllegalArgumentException.class, () -> service.create(null, null, null, null));
-        assertThrows(IllegalArgumentException.class, () -> service.create("  ", null, null, null));
-        assertThrows(IllegalArgumentException.class, () -> service.create("a".repeat(256), null, null, null));
-        assertThrows(IllegalArgumentException.class, () -> service.create("TOEIC", null, date, date.minusDays(1)));
+        assertThrows(IllegalArgumentException.class, () -> service.create(OWNER_ID, null, null, null, null));
+        assertThrows(IllegalArgumentException.class, () -> service.create(OWNER_ID, "  ", null, null, null));
+        assertThrows(IllegalArgumentException.class, () -> service.create(OWNER_ID, "a".repeat(256), null, null, null));
+        assertThrows(IllegalArgumentException.class, () -> service.create(OWNER_ID, "TOEIC", null, date, date.minusDays(1)));
         verifyNoInteractions(repository);
     }
 
@@ -79,12 +80,12 @@ class PlanServiceTest {
     void updatePreservesCreationTimeAndValidatesBeforeWriting() {
         OffsetDateTime created = OffsetDateTime.parse("2026-01-01T00:00:00Z");
         Plan plan = new Plan(1L, "Cũ", null, null, null, created);
-        when(repository.findById(1L)).thenReturn(Optional.of(plan));
-        when(repository.update(plan)).thenReturn(true);
-        assertThrows(IllegalArgumentException.class, () -> service.update(1L, " ", null, null, null));
-        verify(repository, never()).update(any());
-        service.update(1L, "Mới", "Goal", null, null);
-        verify(repository).update(plan);
+        when(repository.findByIdForOwner(OWNER_ID, 1L)).thenReturn(Optional.of(plan));
+        when(repository.updateForOwner(OWNER_ID, plan)).thenReturn(true);
+        assertThrows(IllegalArgumentException.class, () -> service.update(OWNER_ID, 1L, " ", null, null, null));
+        verify(repository, never()).updateForOwner(eq(OWNER_ID), any());
+        service.update(OWNER_ID, 1L, "Mới", "Goal", null, null);
+        verify(repository).updateForOwner(OWNER_ID, plan);
         assertEquals("Mới", plan.getTitle());
         assertEquals("Goal", plan.getGoal());
         assertEquals(created, plan.getCreatedAt());
@@ -92,73 +93,73 @@ class PlanServiceTest {
 
     @Test
     void missingOrInvalidIdsReturn404() {
-        when(repository.findById(99L)).thenReturn(Optional.empty());
-        assertEquals(404, assertThrows(ResponseStatusException.class, () -> service.getById(99L)).getStatusCode().value());
-        assertEquals(404, assertThrows(ResponseStatusException.class, () -> service.getById(0L)).getStatusCode().value());
-        assertEquals(404, assertThrows(ResponseStatusException.class, () -> service.update(99L, "Tên", null, null, null)).getStatusCode().value());
-        assertEquals(404, assertThrows(ResponseStatusException.class, () -> service.delete(99L)).getStatusCode().value());
-        assertEquals(404, assertThrows(ResponseStatusException.class, () -> service.delete(-1L)).getStatusCode().value());
-        verify(repository, never()).findById(0L);
-        verify(repository, never()).deleteById(-1L);
+        when(repository.findByIdForOwner(OWNER_ID, 99L)).thenReturn(Optional.empty());
+        assertEquals(404, assertThrows(ResponseStatusException.class, () -> service.getById(OWNER_ID, 99L)).getStatusCode().value());
+        assertEquals(404, assertThrows(ResponseStatusException.class, () -> service.getById(OWNER_ID, 0L)).getStatusCode().value());
+        assertEquals(404, assertThrows(ResponseStatusException.class, () -> service.update(OWNER_ID, 99L, "Tên", null, null, null)).getStatusCode().value());
+        assertEquals(404, assertThrows(ResponseStatusException.class, () -> service.delete(OWNER_ID, 99L)).getStatusCode().value());
+        assertEquals(404, assertThrows(ResponseStatusException.class, () -> service.delete(OWNER_ID, -1L)).getStatusCode().value());
+        verify(repository, never()).findByIdForOwner(OWNER_ID, 0L);
+        verify(repository, never()).deleteByIdForOwner(OWNER_ID, -1L);
     }
 
     @Test
     void deletionBetweenReadAndUpdateStillReturns404() {
         Plan plan = new Plan("Tên");
-        when(repository.findById(1L)).thenReturn(Optional.of(plan));
-        when(repository.update(plan)).thenReturn(false);
+        when(repository.findByIdForOwner(OWNER_ID, 1L)).thenReturn(Optional.of(plan));
+        when(repository.updateForOwner(OWNER_ID, plan)).thenReturn(false);
         assertEquals(404, assertThrows(ResponseStatusException.class,
-                () -> service.update(1L, "Mới", null, null, null)).getStatusCode().value());
+                () -> service.update(OWNER_ID, 1L, "Mới", null, null, null)).getStatusCode().value());
     }
 
     @Test
     void deleteUsesRepositoryAndDatabaseErrorsAreNotHidden() {
-        when(locks.lockPlan(1L)).thenReturn(true);
-        when(repository.deleteById(1L)).thenReturn(true);
-        service.delete(1L);
-        verify(repository).deleteById(1L);
+        when(locks.lockPlanForOwner(OWNER_ID, 1L)).thenReturn(true);
+        when(repository.deleteByIdForOwner(OWNER_ID, 1L)).thenReturn(true);
+        service.delete(OWNER_ID, 1L);
+        verify(repository).deleteByIdForOwner(OWNER_ID, 1L);
         DataAccessResourceFailureException failure = new DataAccessResourceFailureException("DB unavailable");
-        when(repository.insert(any(Plan.class))).thenThrow(failure);
+        when(repository.insertForOwner(eq(OWNER_ID), any(Plan.class))).thenThrow(failure);
         assertSame(failure, assertThrows(DataAccessResourceFailureException.class,
-                () -> service.create("Tên", null, null, null)));
+                () -> service.create(OWNER_ID, "Tên", null, null, null)));
     }
 
     @Test
     void deleteLocksSamePlanBeforeDelete() {
-        when(locks.lockPlan(7L)).thenReturn(true);
-        when(repository.deleteById(7L)).thenReturn(true);
-        service.delete(7L);
+        when(locks.lockPlanForOwner(OWNER_ID, 7L)).thenReturn(true);
+        when(repository.deleteByIdForOwner(OWNER_ID, 7L)).thenReturn(true);
+        service.delete(OWNER_ID, 7L);
         var order = inOrder(locks, repository);
-        order.verify(locks).lockPlan(7L);
-        order.verify(repository).deleteById(7L);
+        order.verify(locks).lockPlanForOwner(OWNER_ID, 7L);
+        order.verify(repository).deleteByIdForOwner(OWNER_ID, 7L);
         order.verifyNoMoreInteractions();
     }
 
     @Test
     void missingPlanAtLockNeverDeletesAndInvalidIdNeverLocks() {
         assertEquals(404, assertThrows(ResponseStatusException.class,
-                () -> service.delete(7L)).getStatusCode().value());
-        verify(repository, never()).deleteById(anyLong());
-        assertThrows(ResponseStatusException.class, () -> service.delete(0L));
-        verify(locks, never()).lockPlan(0L);
+                () -> service.delete(OWNER_ID, 7L)).getStatusCode().value());
+        verify(repository, never()).deleteByIdForOwner(eq(OWNER_ID), anyLong());
+        assertThrows(ResponseStatusException.class, () -> service.delete(OWNER_ID, 0L));
+        verify(locks, never()).lockPlanForOwner(OWNER_ID, 0L);
     }
 
     @Test
     void missingPlanAfterLockStillReturns404() {
-        when(locks.lockPlan(7L)).thenReturn(true);
+        when(locks.lockPlanForOwner(OWNER_ID, 7L)).thenReturn(true);
         assertEquals(404, assertThrows(ResponseStatusException.class,
-                () -> service.delete(7L)).getStatusCode().value());
+                () -> service.delete(OWNER_ID, 7L)).getStatusCode().value());
         var order = inOrder(locks, repository);
-        order.verify(locks).lockPlan(7L);
-        order.verify(repository).deleteById(7L);
+        order.verify(locks).lockPlanForOwner(OWNER_ID, 7L);
+        order.verify(repository).deleteByIdForOwner(OWNER_ID, 7L);
     }
 
     @Test
     void lockFailureIsPropagatedWithoutDeleting() {
         var failure = new DataAccessResourceFailureException("DB unavailable");
-        when(locks.lockPlan(7L)).thenThrow(failure);
+        when(locks.lockPlanForOwner(OWNER_ID, 7L)).thenThrow(failure);
         assertSame(failure, assertThrows(DataAccessResourceFailureException.class,
-                () -> service.delete(7L)));
+                () -> service.delete(OWNER_ID, 7L)));
         verifyNoInteractions(repository);
     }
 
@@ -174,15 +175,15 @@ class PlanServiceTest {
         var factory = new org.springframework.aop.framework.ProxyFactory(service);
         factory.addAdvice(interceptor);
         PlanService proxy = (PlanService) factory.getProxy();
-        when(locks.lockPlan(7L)).thenReturn(true);
-        when(repository.deleteById(7L)).thenReturn(true);
-        proxy.delete(7L);
+        when(locks.lockPlanForOwner(OWNER_ID, 7L)).thenReturn(true);
+        when(repository.deleteByIdForOwner(OWNER_ID, 7L)).thenReturn(true);
+        proxy.delete(OWNER_ID, 7L);
         var order = inOrder(manager, locks, repository);
         order.verify(manager).getTransaction(any());
-        order.verify(locks).lockPlan(7L);
-        order.verify(repository).deleteById(7L);
+        order.verify(locks).lockPlanForOwner(OWNER_ID, 7L);
+        order.verify(repository).deleteByIdForOwner(OWNER_ID, 7L);
         order.verify(manager).commit(status);
-        assertThrows(ResponseStatusException.class, () -> proxy.delete(8L));
+        assertThrows(ResponseStatusException.class, () -> proxy.delete(OWNER_ID, 8L));
         verify(manager).rollback(status);
     }
 }

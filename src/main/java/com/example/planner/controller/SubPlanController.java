@@ -32,11 +32,12 @@ public class SubPlanController {
 
     @GetMapping
     public String list(@RequestParam(name = "planId", required = false) Long planId, Model model) {
-        model.addAttribute("plans",ProgressReadSupport.primary(plans::findAll));
+        long ownerId = RequestOwner.require();
+        model.addAttribute("plans",ProgressReadSupport.primary(()->plans.findAll(ownerId)));
         if (planId != null) {
-            Plan main=ProgressReadSupport.primary(()->service.getPlan(planId));
-            var rows=ProgressReadSupport.primary(()->service.findByPlanId(planId));
-            var snapshot=ProgressReadSupport.tree(()->trees.loadPlan(planId));
+            Plan main=ProgressReadSupport.primary(()->service.getPlan(ownerId, planId));
+            var rows=ProgressReadSupport.primary(()->service.findByPlanId(ownerId, planId));
+            var snapshot=ProgressReadSupport.tree(()->trees.loadPlan(ownerId, planId));
             var displayed=snapshot.map(PlanTreeService.PlanSnapshot::subPlans).orElse(rows);
             model.addAttribute("plan",snapshot.map(PlanTreeService.PlanSnapshot::plan).orElse(main));
             model.addAttribute("subPlans",displayed);
@@ -59,16 +60,18 @@ public class SubPlanController {
     public String create(@RequestParam("planId") long planId,
                          @RequestParam Map<String, String> parameters,
                          Model model, RedirectAttributes redirect) {
-        service.getPlan(planId);
+        long ownerId = RequestOwner.require();
+        service.getPlan(ownerId, planId);
         return save(null, planId, parameters, model, redirect);
     }
 
     @GetMapping("/{id}")
     public String detail(@PathVariable("id") long id, Model model) {
-        SubPlan main=ProgressReadSupport.primary(()->service.getById(id));
-        Plan root=ProgressReadSupport.primary(()->service.getPlan(main.getPlanId()));
-        var warnings=ProgressReadSupport.primary(()->service.getDateWarnings(main));
-        var snapshot=ProgressReadSupport.tree(()->trees.loadSubPlan(id));
+        long ownerId = RequestOwner.require();
+        SubPlan main=ProgressReadSupport.primary(()->service.getById(ownerId, id));
+        Plan root=ProgressReadSupport.primary(()->service.getPlan(ownerId, main.getPlanId()));
+        var warnings=ProgressReadSupport.primary(()->service.getDateWarnings(ownerId, main));
+        var snapshot=ProgressReadSupport.tree(()->trees.loadSubPlan(ownerId, id));
         SubPlan subPlan=snapshot.map(PlanTreeService.SubPlanSnapshot::subPlan).orElse(main);
         model.addAttribute("subPlan",subPlan);
         model.addAttribute("taskListUrl", "/tasks?subPlanId=" + id);
@@ -83,7 +86,8 @@ public class SubPlanController {
 
     @GetMapping("/{id}/edit")
     public String showEditForm(@PathVariable("id") long id, Model model) {
-        SubPlan subPlan = service.getById(id);
+        long ownerId = RequestOwner.require();
+        SubPlan subPlan = service.getById(ownerId, id);
         Map<String, String> form = new LinkedHashMap<>();
         form.put("title", subPlan.getTitle());
         form.put("description", text(subPlan.getDescription()));
@@ -97,20 +101,23 @@ public class SubPlanController {
     @PostMapping("/{id}/edit")
     public String update(@PathVariable("id") long id, @RequestParam Map<String, String> parameters,
                          Model model, RedirectAttributes redirect) {
+        long ownerId = RequestOwner.require();
         // Không lấy planId từ form: chưa hỗ trợ chuyển SubPlan sang Plan khác.
-        SubPlan current = service.getById(id);
+        SubPlan current = service.getById(ownerId, id);
         return save(id, current.getPlanId(), parameters, model, redirect);
     }
 
     @PostMapping("/{id}/delete")
     public String delete(@PathVariable("id") long id, RedirectAttributes redirect) {
-        long planId = service.delete(id);
+        long ownerId = RequestOwner.require();
+        long planId = service.delete(ownerId, id);
         redirect.addFlashAttribute("message", "Đã xóa SubPlan và toàn bộ cây con");
         return "redirect:/subplans?planId=" + planId;
     }
 
     private String save(Long id, long planId, Map<String, String> parameters,
                         Model model, RedirectAttributes redirect) {
+        long ownerId = RequestOwner.require();
         Map<String, String> form = readForm(parameters);
         Map<String, String> errors = new LinkedHashMap<>();
         LocalDate start = readDate(form, "startDate", errors);
@@ -122,9 +129,9 @@ public class SubPlanController {
         long savedId;
         try {
             if (id == null) {
-                savedId = service.create(planId, parentId, form.get("title"), form.get("description"), start, end, order);
+                savedId = service.create(ownerId, planId, parentId, form.get("title"), form.get("description"), start, end, order);
             } else {
-                service.update(id, parentId, form.get("title"), form.get("description"), start, end, order);
+                service.update(ownerId, id, parentId, form.get("title"), form.get("description"), start, end, order);
                 savedId = id;
             }
         } catch (SubPlanService.InputException exception) {
@@ -137,8 +144,9 @@ public class SubPlanController {
 
     private String prepareForm(long planId, Long id, Map<String, String> form,
                                Map<String, String> errors, Model model) {
-        model.addAttribute("plan", service.getPlan(planId));
-        List<SubPlan> parents = service.findByPlanId(planId).stream()
+        long ownerId = RequestOwner.require();
+        model.addAttribute("plan", service.getPlan(ownerId, planId));
+        List<SubPlan> parents = service.findByPlanId(ownerId, planId).stream()
                 .filter(item -> !item.getId().equals(id)).toList();
         model.addAttribute("parents", parents);
         model.addAttribute("parentSelectionKnown", form.get("parentSubPlanId").isBlank()

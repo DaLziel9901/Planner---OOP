@@ -128,6 +128,19 @@ class DatabaseTargetGuardTest {
         verifyNoInteractions(connector);
     }
 
+    @Test
+    void runtimeCatalogMustReportComplete003Schema() throws SQLException {
+        var connection = mock(Connection.class);
+        var statement = mock(Statement.class);
+        var row = mock(ResultSet.class);
+        when(connection.createStatement()).thenReturn(statement);
+        when(statement.executeQuery(contains("required_constraints"))).thenReturn(row);
+        when(row.next()).thenReturn(true);
+        when(row.getBoolean(1)).thenReturn(false, true);
+        assertThrows(SQLException.class, () -> DatabaseTargetGuard.verifyRuntimeCatalog(connection));
+        assertDoesNotThrow(() -> DatabaseTargetGuard.verifyRuntimeCatalog(connection));
+    }
+
     private static Connection open(String url, String role, String schema, DatabaseTargetGuard.Connector connector)
             throws SQLException {
         return DatabaseTargetGuard.openVerified(url, role, "fixture", schema, connector);

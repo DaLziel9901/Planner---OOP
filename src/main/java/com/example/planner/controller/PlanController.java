@@ -33,8 +33,9 @@ public class PlanController {
 
     @GetMapping
     public String list(Model model) {
-        var main=ProgressReadSupport.primary(planService::findAll);
-        var snapshot=ProgressReadSupport.tree(trees::loadPlans);
+        long ownerId = RequestOwner.require();
+        var main=ProgressReadSupport.primary(()->planService.findAll(ownerId));
+        var snapshot=ProgressReadSupport.tree(()->trees.loadPlans(ownerId));
         var displayed=snapshot.orElse(main);
         model.addAttribute("plans",displayed);
         model.addAttribute("progressById",ProgressReadSupport.progress(displayed,Plan::getId,snapshot.isPresent()));
@@ -58,6 +59,7 @@ public class PlanController {
             Model model,
             RedirectAttributes redirectAttributes
     ) {
+        long ownerId = RequestOwner.require();
         Map<String, String> form = readForm(parameters);
         Map<String, String> errors = new LinkedHashMap<>();
 
@@ -73,6 +75,7 @@ public class PlanController {
         }
 
         long id = planService.create(
+                ownerId,
                 form.get("title"),
                 form.get("goal"),
                 startDate,
@@ -91,8 +94,9 @@ public class PlanController {
             @PathVariable("id") long id,
             Model model
     ) {
-        Plan main=ProgressReadSupport.primary(()->planService.getById(id));
-        var snapshot=ProgressReadSupport.tree(()->trees.loadPlan(id));
+        long ownerId = RequestOwner.require();
+        Plan main=ProgressReadSupport.primary(()->planService.getById(ownerId, id));
+        var snapshot=ProgressReadSupport.tree(()->trees.loadPlan(ownerId, id));
         Plan displayed=snapshot.map(PlanTreeService.PlanSnapshot::plan).orElse(main);
         model.addAttribute("plan",displayed);
         model.addAttribute("progress",snapshot.isPresent()?ProgressPresentation.from(displayed):ProgressPresentation.unavailable());
@@ -110,7 +114,8 @@ public class PlanController {
             @PathVariable("id") long id,
             Model model
     ) {
-        Plan plan = planService.getById(id);
+        long ownerId = RequestOwner.require();
+        Plan plan = planService.getById(ownerId, id);
 
         Map<String, String> form = new LinkedHashMap<>();
         form.put("title", plan.getTitle());
@@ -133,8 +138,9 @@ public class PlanController {
             Model model,
             RedirectAttributes redirectAttributes
     ) {
+        long ownerId = RequestOwner.require();
         // ID không tồn tại phải báo 404, kể cả khi form nhập sai.
-        planService.getById(id);
+        planService.getById(ownerId, id);
 
         Map<String, String> form = readForm(parameters);
         Map<String, String> errors = new LinkedHashMap<>();
@@ -154,6 +160,7 @@ public class PlanController {
         }
 
         planService.update(
+                ownerId,
                 id,
                 form.get("title"),
                 form.get("goal"),
@@ -173,7 +180,8 @@ public class PlanController {
             @PathVariable("id") long id,
             RedirectAttributes redirectAttributes
     ) {
-        planService.delete(id);
+        long ownerId = RequestOwner.require();
+        planService.delete(ownerId, id);
 
         redirectAttributes.addFlashAttribute(
                 "message", "Đã xóa kế hoạch và toàn bộ công việc bên dưới"

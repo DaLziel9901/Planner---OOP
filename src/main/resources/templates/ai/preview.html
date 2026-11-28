@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Bản nháp kế hoạch</title></head>
+<body>
+<main>
+    <h1 th:text="${draftTitle}">Bản nháp kế hoạch</h1>
+    <p th:if="${error}" th:text="${error}" role="alert"></p>
+    <form method="post" th:action="@{/ai/plans/edit}">
+        <input type="hidden" name="draftId" th:value="${draftId}">
+        <p><label>Chỉnh sửa bản nháp JSON
+            <textarea name="json" rows="30" cols="80" required maxlength="256000"
+                      th:text="${submittedJson ?: draftJson}"></textarea>
+        </label></p>
+        <button>Cập nhật bản nháp</button>
+    </form>
+    <form th:unless="${error}" method="post" th:action="@{/ai/plans/confirm}">
+        <input type="hidden" name="draftId" th:value="${draftId}">
+        <button>Xác nhận và lưu kế hoạch</button>
+    </form>
+    <a th:href="@{/ai/plans/new}">Tạo bản nháp mới</a>
+</main>
+</body>
+</html>

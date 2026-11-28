@@ -19,6 +19,49 @@ public final class DatabaseTargetGuard {
             FROM pg_catalog.pg_roles
             WHERE rolname = CURRENT_USER
             """;
+    private static final String RUNTIME_CATALOG_SQL = """
+            WITH required_columns(table_name, column_name, column_type) AS (
+                VALUES ('app_user', 'id', 'bigint'),
+                       ('app_user', 'username', 'character varying(32)'),
+                       ('app_user', 'password_hash', 'character varying(60)'),
+                       ('app_user', 'created_at', 'timestamp with time zone'),
+                       ('plan', 'owner_user_id', 'bigint'), ('task', 'owner_user_id', 'bigint'),
+                       ('sub_plan', 'plan_id', 'bigint'), ('sub_plan', 'parent_sub_plan_id', 'bigint'),
+                       ('task', 'plan_id', 'bigint'), ('task', 'sub_plan_id', 'bigint'),
+                       ('sub_task', 'task_id', 'bigint'), ('sub_task', 'done', 'boolean'),
+                       ('sub_task', 'completed_at', 'timestamp with time zone')
+            ), required_constraints(table_name, constraint_name, constraint_type) AS (
+                VALUES ('app_user', 'app_user_pkey', 'p'),
+                       ('app_user', 'app_user_username_key', 'u'),
+                       ('app_user', 'app_user_username_format', 'c'),
+                       ('plan', 'plan_owner_fk', 'f'), ('task', 'task_owner_fk', 'f'),
+                       ('plan', 'plan_owner_required', 'c'), ('task', 'task_owner_scope', 'c')
+            )
+            SELECT NOT EXISTS (
+                SELECT 1 FROM required_columns expected
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM pg_catalog.pg_attribute actual
+                    JOIN pg_catalog.pg_class relation ON relation.oid = actual.attrelid
+                    JOIN pg_catalog.pg_namespace ns ON ns.oid = relation.relnamespace
+                    WHERE ns.nspname = 'public' AND relation.relkind = 'r'
+                      AND relation.relname = expected.table_name AND actual.attname = expected.column_name
+                      AND NOT actual.attisdropped
+                      AND pg_catalog.format_type(actual.atttypid, actual.atttypmod) = expected.column_type
+                )
+            ) AND NOT EXISTS (
+                SELECT 1 FROM required_constraints expected
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM pg_catalog.pg_constraint actual
+                    JOIN pg_catalog.pg_class relation ON relation.oid = actual.conrelid
+                    JOIN pg_catalog.pg_namespace ns ON ns.oid = relation.relnamespace
+                    WHERE ns.nspname = 'public' AND relation.relname = expected.table_name
+                      AND actual.conname = expected.constraint_name AND actual.contype::text = expected.constraint_type
+                      AND (expected.constraint_type <> 'f' OR (
+                          actual.convalidated AND actual.confdeltype = 'r'
+                          AND actual.confrelid = pg_catalog.to_regclass('public.app_user')))
+                )
+            )
+            """;
 
     private DatabaseTargetGuard() {
     }
@@ -94,6 +137,15 @@ public final class DatabaseTargetGuard {
                     || !role.equals(row.getString(3)) || !row.getBoolean(4) || row.wasNull()
                     || row.getBoolean(5) || row.wasNull() || row.next()) {
                 throw new SQLException("PostgreSQL database, schema, search path or role is not the configured test identity");
+            }
+        }
+    }
+
+    public static void verifyRuntimeCatalog(Connection connection) throws SQLException {
+        try (var statement = connection.createStatement();
+             var row = statement.executeQuery(RUNTIME_CATALOG_SQL)) {
+            if (!row.next() || !row.getBoolean(1)) {
+                throw new SQLException("Planner requires the complete 003 catalog in public before startup");
             }
         }
     }
