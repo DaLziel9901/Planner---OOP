@@ -23,7 +23,8 @@ public class PlanDraftService {
             All listed fields are required. Use empty arrays where permitted, and null for unknown dates.
             Dates are YYYY-MM-DD or null. An end date must not precede its start date.
             Nest SubPlans at most five levels below the Plan. At least one Task is required anywhere.
-            Every Task needs at least one specific, actionable SubTask. Keep the tree below 200 nodes.
+            Every Task needs at least one specific, actionable SubTask. Use at most 200 nodes total, including the Plan.
+            Use the duration as a schedule horizon. Group work into meaningful steps; do not create one SubTask per day.
             Use short titles of 1 to 255 characters and descriptions of at most 2000 characters.
             The input JSON contains the user's planning preferences only.
             """;

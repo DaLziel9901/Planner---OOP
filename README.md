@@ -12,7 +12,7 @@ Hồ sơ 003 có 24 completed, 15 partial và 1 open. Hồ sơ 004 có 6 complet
 
 1. Dùng JDK 17 và Maven Wrapper đi kèm. PostgreSQL phải có database thử `planner_auth_test`, role riêng và catalog 003 đã chuẩn bị. Ứng dụng xác minh đích và catalog khi khởi động. SQL init tự động đang tắt. Xem [quy trình cho đích thử trống và regression](DEMO_GUIDE.md).
 2. Đặt `DB_URL`, `DB_USERNAME` và `DB_PASSWORD` trong môi trường terminal hoặc cấu hình chạy cục bộ. Với test PostgreSQL, đặt thêm `TEST_DB_URL`, `TEST_DB_USERNAME` và `TEST_DB_PASSWORD` cùng đích và role thử.
-3. Để dùng provider thật, đặt `AI_BASE_URL` là base HTTPS (ví dụ có tiền tố API `/v1`), `AI_MODEL` và `AI_API_KEY`. Giữ credential ngoài Git.
+3. Để dùng provider thật, đặt `AI_BASE_URL` là base HTTPS, `AI_MODEL` và `AI_API_KEY`. Để thử schema phẳng với Groq, dùng base `https://api.groq.com/openai/v1`, model `openai/gpt-oss-120b` và `AI_FLAT_SCHEMA=true`. Cờ này chọn Strict Mode với schema phẳng. Khi tắt cờ, `AI_STRICT_SCHEMA=true` chọn schema đệ quy, còn mặc định là `json_object`. Giữ credential ngoài Git.
 4. Chạy `./mvnw spring-boot:run` trên macOS/Linux hoặc lệnh PowerShell dưới đây. Mở `http://localhost:8080/`. Khách được chuyển tới `/login`. Đăng ký tại `/register`. Sau login, vào `/plans` hoặc tạo bản nháp tại `/ai/plans/new`.
 
 ```powershell

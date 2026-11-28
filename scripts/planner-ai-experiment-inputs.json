@@ -1,0 +1,5 @@
+[
+  {"goal":"Ôn tập Java cơ bản","level":"Người mới bắt đầu","durationDays":7,"notes":"Ưu tiên bài tập ngắn về lớp, đối tượng và collections."},
+  {"goal":"Xây dựng ứng dụng quản lý công việc bằng Spring Boot và PostgreSQL","level":"Đã biết Java cơ bản","durationDays":30,"notes":"Bao gồm thiết kế dữ liệu, CRUD và kiểm thử."},
+  {"goal":"Xây dựng game 2D đơn giản bằng C++","level":"Đã biết cú pháp C++ cơ bản","durationDays":120,"notes":"Bao gồm prototype, gameplay, kiểm thử và đóng gói bản demo."}
+]

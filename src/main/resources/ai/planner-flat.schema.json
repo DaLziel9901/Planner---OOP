@@ -1,0 +1,24 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["nodes"],
+  "properties": {
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "parentId", "type", "title", "details", "date", "endDate"],
+        "properties": {
+          "id": {"type": "integer", "description": "Unique positive temporary ID within this draft."},
+          "parentId": {"type": ["integer", "null"], "description": "ID of the parent, or null only for the single Plan root."},
+          "type": {"type": "string", "enum": ["Plan", "SubPlan", "Task", "SubTask"]},
+          "title": {"type": "string"},
+          "details": {"type": ["string", "null"], "description": "Plan goal or description for any other node."},
+          "date": {"type": ["string", "null"], "description": "YYYY-MM-DD start date, or scheduled date for a SubTask."},
+          "endDate": {"type": ["string", "null"], "description": "YYYY-MM-DD end date, or null for a SubTask."}
+        }
+      }
+    }
+  }
+}

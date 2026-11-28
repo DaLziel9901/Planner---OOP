@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.LocalDate;
+import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -27,6 +28,7 @@ class PlanDraftServiceTest {
             assertEquals("English", fields.path("goal").asString());
             assertEquals(30, fields.path("durationDays").asInt());
             assertTrue(instructions.contains("five levels"));
+            assertTrue(instructions.contains("do not create one SubTask per day"));
             return PLAN.formatted("[]", "[" + TASK + "]");
         }, mapper);
 
@@ -59,6 +61,20 @@ class PlanDraftServiceTest {
     @Test
     void rejectsInvalidInputBeforeProvider() {
         assertThrows(IllegalArgumentException.class, () -> offline().generate("goal", "level", 0, ""));
+    }
+
+    @Test
+    void rejectsProviderJsonThatExceedsAggregateNodeLimit() {
+        var mapper = new JsonMapper();
+        for (int leaves : new int[]{198, 199}) {
+            String task = TASK.replace(LEAF, String.join(",", Collections.nCopies(leaves, LEAF)));
+            var service = new PlanDraftService((instructions, input) -> PLAN.formatted("[]", "[" + task + "]"), mapper);
+            if (leaves == 198) {
+                assertEquals(198, service.generate("Practice", "Beginner", 30, "").tasks().get(0).subTasks().size());
+            } else {
+                assertThrows(IllegalArgumentException.class, () -> service.generate("Practice", "Beginner", 30, ""));
+            }
+        }
     }
 
     private static String nested(int depth) {

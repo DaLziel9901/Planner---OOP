@@ -281,6 +281,9 @@ class AuthSecurityIntegrationTest {
                         .param("_csrf", postFormToken(form.getResponse().getContentAsString(), "/ai/plans/preview"))
                         .param("goal", "Read").param("level", "Beginner").param("durationDays", "7"))
                 .andExpect(status().isOk()).andExpect(view().name("ai/preview"))
+                .andExpect(model().attribute("draftTitle", "<b>Reading plan</b>"))
+                .andExpect(content().string(containsString("name=\"draftId\"")))
+                .andExpect(content().string(containsString("name=\"json\"")))
                 .andExpect(content().string(containsString("&lt;b&gt;Reading plan&lt;/b&gt;")))
                 .andReturn();
         String firstId = preview.getModelAndView().getModel().get("draftId").toString();
