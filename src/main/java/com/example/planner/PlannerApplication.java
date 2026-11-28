@@ -1,6 +1,7 @@
 package com.example.planner;
 
 import com.example.planner.config.DatabaseTargetGuard;
+import com.example.planner.config.ReleaseDatabaseBootstrap;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -26,7 +27,7 @@ public class PlannerApplication {
 		DataSource source = new AbstractDataSource() {
 			@Override
 			public Connection getConnection() throws SQLException {
-				return DatabaseTargetGuard.openVerified(url, role, password, "public", DriverManager::getConnection);
+				return DatabaseTargetGuard.openRuntime(url, role, password, DriverManager::getConnection);
 			}
 
 			@Override
@@ -40,7 +41,12 @@ public class PlannerApplication {
 		return source;
 	}
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws SQLException {
+		if (args.length == 1 && "--planner-bootstrap".equals(args[0])) {
+			ReleaseDatabaseBootstrap.initialize(System.getenv("DB_URL"), System.getenv("DB_USERNAME"),
+					System.getenv("DB_PASSWORD"));
+			return;
+		}
 		SpringApplication.run(PlannerApplication.class, args);
 	}
 

@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{fragments/layout :: page('Chi tiết giai đoạn', 'subplans', ~{::main})}">
+      th:replace="~{fragments/layout :: page('Chi tiết mục tiêu nhỏ', 'subplans', ~{::main})}">
 <head><title>Planner</title></head>
 <body>
 <main id="main-content" class="page-content" tabindex="-1">
     <nav class="planning-breadcrumb" aria-label="Đường dẫn kế hoạch">
         <a th:href="@{/plans} + |#muc-tieu-${plan.id}|" th:text="${plan.title}"></a>
-        <a th:href="@{/subplans(planId=${plan.id})}">Danh sách giai đoạn</a>
+        <a th:href="@{/subplans(planId=${plan.id})}">Danh sách mục tiêu nhỏ</a>
         <a th:if="${subPlan.parentSubPlanId != null}"
            th:href="@{/subplans/{id}(id=${subPlan.parentSubPlanId})}"
-           th:text="|Giai đoạn cha #${subPlan.parentSubPlanId}|"></a>
+           th:text="|Mục tiêu nhỏ cha #${subPlan.parentSubPlanId}|"></a>
     </nav>
     <div class="planning-heading">
         <div>
-            <p class="item-meta" th:text="|Giai đoạn #${subPlan.id}|"></p>
+            <p class="item-meta" th:text="|Mục tiêu nhỏ #${subPlan.id}|"></p>
             <h1 th:text="${subPlan.title}"></h1>
         </div>
-        <a class="button" th:href="@{/subplans/{id}/edit(id=${subPlan.id})}">Sửa giai đoạn</a>
+        <a class="button" th:href="@{/subplans/{id}/edit(id=${subPlan.id})}">Sửa mục tiêu nhỏ</a>
     </div>
     <p th:replace="~{fragments/labels :: flash(${message})}"></p>
     <aside class="warning-panel" th:unless="${#lists.isEmpty(warnings)}">
@@ -40,23 +40,23 @@
         </section>
         <div class="planning-stack">
             <section class="planning-panel">
-                <h2>Giai đoạn con</h2>
-                <p class="planning-state" th:if="${treeAvailable and #lists.isEmpty(children)}">Chưa có giai đoạn con.</p>
-                <p class="planning-state" th:unless="${treeAvailable}">Chưa tải đầy đủ các giai đoạn con.</p>
+                <h2>Mục tiêu nhỏ con</h2>
+                <p class="planning-state" th:if="${treeAvailable and #lists.isEmpty(children)}">Chưa có mục tiêu nhỏ con.</p>
+                <p class="planning-state" th:unless="${treeAvailable}">Chưa tải đầy đủ các mục tiêu nhỏ con.</p>
                 <ul class="direct-children" th:if="${treeAvailable and !#lists.isEmpty(children)}">
                     <li th:each="child : ${children}">
                         <a th:href="@{/subplans/{id}(id=${child.id})}" th:text="${child.title}"></a>
                     </li>
                 </ul>
                 <a class="button button--primary" th:href="@{/subplans/new(planId=${plan.id},parentSubPlanId=${subPlan.id})}">
-                    Thêm giai đoạn con
+                    Thêm mục tiêu nhỏ con
                 </a>
             </section>
             <section class="planning-panel">
-                <h2>Công việc trực tiếp</h2>
+                <h2>Task trực tiếp</h2>
                 <div class="planning-actions">
-                    <a class="button" th:href="${taskListUrl}">Xem công việc</a>
-                    <a class="button" th:href="${newTaskUrl}">Thêm công việc</a>
+                    <a class="button" th:href="${taskListUrl}">Xem Task</a>
+                    <a class="button" th:href="${newTaskUrl}">Thêm Task</a>
                 </div>
             </section>
         </div>
@@ -64,10 +64,10 @@
     <section class="danger-panel">
         <div>
             <h2>Xóa nhánh</h2>
-            <p>Giai đoạn này cùng tất cả các giai đoạn, công việc và việc nhỏ bên dưới sẽ bị xóa.</p>
+            <p>Mục tiêu nhỏ này cùng tất cả các mục tiêu nhỏ, Task và Sub Task bên dưới sẽ bị xóa.</p>
         </div>
         <form method="post" th:action="@{/subplans/{id}/delete(id=${subPlan.id})}" class="delete-form"
-              onsubmit="return confirm('Xóa giai đoạn này và toàn bộ các mục bên dưới?');">
+              onsubmit="return confirm('Xóa mục tiêu nhỏ này và toàn bộ các mục bên dưới?');">
             <button type="submit">Xóa toàn bộ nhánh này</button>
         </form>
     </section>

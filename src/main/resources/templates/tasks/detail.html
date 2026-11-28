@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{fragments/layout :: page('Chi tiết công việc', 'tasks', ~{::main})}">
+      th:replace="~{fragments/layout :: page('Chi tiết Task', 'tasks', ~{::main})}">
 <head><title>Planner</title></head>
 <body>
 <main id="main-content" class="page-content" tabindex="-1">
-    <nav class="planning-breadcrumb" aria-label="Đường dẫn công việc">
+    <nav class="planning-breadcrumb" aria-label="Đường dẫn Task">
         <a th:if="${parentUrl != null}" th:href="${parentUrl}">Về mục cha</a>
-        <a th:href="${taskListUrl}">Danh sách công việc</a>
+        <a th:href="${taskListUrl}">Danh sách Task</a>
     </nav>
     <div class="planning-heading">
         <div>
             <p class="item-meta"><th:block th:replace="~{fragments/labels :: location(${locationLabel})}"></th:block></p>
             <h1 th:text="${task.title}"></h1>
         </div>
-        <a class="button" th:href="@{/tasks/{id}/edit(id=${task.id})}">Sửa công việc</a>
+        <a class="button" th:href="@{/tasks/{id}/edit(id=${task.id})}">Sửa Task</a>
     </div>
     <p th:replace="~{fragments/labels :: flash(${message})}"></p>
     <section class="planning-panel work-overview">
@@ -29,34 +29,34 @@
             </dl>
         </div>
         <div class="work-progress-panel">
-            <h2>Tiến độ công việc</h2>
+            <h2>Tiến độ Task</h2>
             <div th:replace="~{fragments/progress :: indicator(${progress})}"></div>
         </div>
     </section>
     <section class="planning-panel work-section">
         <div class="section-heading">
-            <h2>Việc nhỏ</h2>
+            <h2>Sub Task</h2>
             <div class="planning-actions">
                 <a class="button" th:href="@{/subtasks(taskId=${task.id})}">Danh sách và lịch tuần</a>
                 <a class="button button--primary" th:href="@{/subtasks/new(taskId=${task.id})}">
-                    <span aria-hidden="true">+</span> Thêm việc nhỏ
+                    <span aria-hidden="true">+</span> Thêm Sub Task
                 </a>
             </div>
         </div>
-        <p class="planning-state" th:if="${treeAvailable and #lists.isEmpty(subTasks)}">Chưa có việc nhỏ.</p>
-        <p class="planning-state" th:unless="${treeAvailable}">Chưa tải đầy đủ danh sách việc nhỏ.</p>
+        <p class="planning-state" th:if="${treeAvailable and #lists.isEmpty(subTasks)}">Chưa có Sub Task.</p>
+        <p class="planning-state" th:unless="${treeAvailable}">Chưa tải đầy đủ danh sách Sub Task.</p>
         <th:block th:if="${treeAvailable and !#lists.isEmpty(subTasks)}">
             <ul th:replace="~{fragments/work-items :: subtaskList(${subTasks}, ${task.id}, 'task')}"></ul>
         </th:block>
     </section>
     <section class="danger-panel">
         <div>
-            <h2>Xóa công việc</h2>
-            <p>Toàn bộ việc nhỏ bên dưới cũng sẽ bị xóa.</p>
+            <h2>Xóa Task</h2>
+            <p>Toàn bộ Sub Task bên dưới cũng sẽ bị xóa.</p>
         </div>
         <form class="delete-form" method="post" th:action="@{/tasks/{id}/delete(id=${task.id})}"
-              onsubmit="return confirm('Xóa công việc này và toàn bộ việc nhỏ bên dưới?');">
-            <button type="submit">Xóa công việc</button>
+              onsubmit="return confirm('Xóa Task này và toàn bộ Sub Task bên dưới?');">
+            <button type="submit">Xóa Task</button>
         </form>
     </section>
 </main>

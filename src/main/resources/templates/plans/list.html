@@ -9,7 +9,7 @@
         <div class="home-heading workspace-banner">
             <h1>Kế hoạch</h1>
             <div class="home-heading__actions">
-                <a class="button" th:href="@{/tasks}">Công việc độc lập</a>
+                <a class="button" th:href="@{/tasks}">Task độc lập</a>
                 <a class="button ai-entry" th:href="@{/ai/plans/new}">Tạo kế hoạch bằng AI</a>
                 <a class="button button--primary" th:href="@{/plans/new}">+ Thêm mục tiêu</a>
             </div>
@@ -17,7 +17,7 @@
         <p th:replace="~{fragments/labels :: flash(${message})}"></p>
         <section class="home-state" th:if="${#lists.isEmpty(plans)}">
             <h2>Chưa có kế hoạch</h2>
-            <p>Tạo một mục tiêu để sắp xếp các giai đoạn và công việc của bạn.</p>
+            <p>Tạo một mục tiêu để sắp xếp các mục tiêu nhỏ và Task của bạn.</p>
             <a class="button button--primary" th:href="@{/plans/new}">Tạo mục tiêu đầu tiên</a>
         </section>
         <div class="goal-workspace" th:unless="${#lists.isEmpty(plans)}">

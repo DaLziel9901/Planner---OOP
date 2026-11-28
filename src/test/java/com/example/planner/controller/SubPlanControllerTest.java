@@ -111,7 +111,7 @@ class SubPlanControllerTest extends AuthenticatedControllerTest {
     @Test
     void rendersCreateEditDetailAndEscapesUserText() throws Exception {
         mvc.perform(get("/subplans/new").param("planId", "1").param("parentSubPlanId", "2"))
-                .andExpect(status().isOk()).andExpect(content().string(containsString("Thêm SubPlan")));
+                .andExpect(status().isOk()).andExpect(content().string(containsString("Thêm mục tiêu nhỏ")));
         mvc.perform(get("/subplans/2/edit")).andExpect(status().isOk())
                 .andExpect(model().attribute("editing", true));
         current.setDescription("<script>alert(1)</script>");
@@ -179,10 +179,10 @@ class SubPlanControllerTest extends AuthenticatedControllerTest {
         node.addTask(task); root.addSubPlan(all.get(0));
         doReturn(new PlanTreeService.SubPlanSnapshot(root,all.get(0),all)).when(trees).loadSubPlan(OWNER_ID, 2);
         doReturn(new PlanTreeService.PlanSnapshot(root,all)).when(trees).loadPlan(OWNER_ID, 1);
-        mvc.perform(get("/subplans/2")).andExpect(status().isOk()).andExpect(content().string(containsString("1/1 SubTask — 100%")));
+        mvc.perform(get("/subplans/2")).andExpect(status().isOk()).andExpect(content().string(containsString("1/1 Sub Task — 100%")));
         mvc.perform(get("/subplans").param("planId","1")).andExpect(status().isOk()).andExpect(content().string(containsString("Tầng 5")));
         doReturn(new PlanTreeService.SubPlanSnapshot(root,current,List.of(current))).when(trees).loadSubPlan(OWNER_ID, 2);
-        mvc.perform(get("/subplans/2")).andExpect(status().isOk()).andExpect(content().string(containsString("Chưa có công việc")))
+        mvc.perform(get("/subplans/2")).andExpect(status().isOk()).andExpect(content().string(containsString("Chưa có Sub Task")))
                 .andExpect(content().string(org.hamcrest.Matchers.not(containsString("0%"))));
     }
 }

@@ -1,25 +1,25 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{fragments/layout :: page('Danh sách công việc', 'tasks', ~{::main})}">
+      th:replace="~{fragments/layout :: page('Danh sách Task', 'tasks', ~{::main})}">
 <head><title>Planner</title></head>
 <body>
 <main id="main-content" class="page-content" tabindex="-1">
-    <nav class="planning-breadcrumb" aria-label="Đường dẫn công việc" th:if="${parentUrl != null}">
+    <nav class="planning-breadcrumb" aria-label="Đường dẫn Task" th:if="${parentUrl != null}">
         <a th:href="${parentUrl}">Về mục cha</a>
-        <a th:href="@{/tasks}">Công việc độc lập</a>
+        <a th:href="@{/tasks}">Task độc lập</a>
     </nav>
     <div class="planning-heading">
         <div>
             <h1><th:block th:replace="~{fragments/labels :: location(${locationLabel})}"></th:block></h1>
-            <p th:unless="${#lists.isEmpty(tasks)}" th:text="|${#lists.size(tasks)} công việc|"></p>
+            <p th:unless="${#lists.isEmpty(tasks)}" th:text="|${#lists.size(tasks)} Task|"></p>
         </div>
-        <a class="button button--primary" th:href="${newTaskUrl}"><span aria-hidden="true">+</span> Thêm công việc</a>
+        <a class="button button--primary" th:href="${newTaskUrl}"><span aria-hidden="true">+</span> Thêm Task</a>
     </div>
     <p th:replace="~{fragments/labels :: flash(${message})}"></p>
     <p class="planning-state" th:unless="${progressAvailable}">Chưa có tiến độ khả dụng.</p>
     <section class="empty-panel" th:if="${#lists.isEmpty(tasks)}">
-        <h2 th:text="${parentUrl == null ? 'Chưa có công việc độc lập' : 'Chưa có công việc trực tiếp ở đây'}"></h2>
-        <p>Tạo công việc để thêm các việc nhỏ và theo dõi tiến độ.</p>
+        <h2 th:text="${parentUrl == null ? 'Chưa có Task độc lập' : 'Chưa có Task trực tiếp ở đây'}"></h2>
+        <p>Tạo Task để thêm các Sub Task và theo dõi tiến độ.</p>
     </section>
     <ul class="work-list" th:unless="${#lists.isEmpty(tasks)}">
         <li class="work-row" th:each="task : ${tasks}">

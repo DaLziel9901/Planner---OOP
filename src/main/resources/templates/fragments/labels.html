@@ -2,10 +2,10 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <body>
     <th:block th:fragment="feedback(value)"
-              th:with="leaf=${#strings.replace(value, 'SubTask', 'việc nhỏ')},
-                       task=${#strings.replace(leaf, 'Task', 'công việc')},
-                       phase=${#strings.replace(task, 'SubPlan', 'giai đoạn')},
-                       goal=${#strings.replace(phase, 'Plan', 'mục tiêu')}"
+              th:with="leaf=${#strings.replace(value, 'SubTask', 'Sub Task')},
+                       phase=${#strings.replace(leaf, 'SubPlan', 'mục tiêu nhỏ')},
+                       descendants=${#strings.replace(phase, 'toàn bộ công việc bên dưới', 'toàn bộ các mục bên dưới')},
+                       goal=${#strings.replace(descendants, 'Plan', 'mục tiêu')}"
               th:text="${#strings.startsWith(value, 'Ngày không hợp lệ')
                         ? 'Ngày không hợp lệ. Hãy chọn lại trên lịch.'
                         : #strings.capitalize(#strings.replace(goal, 'kế hoạch', 'mục tiêu'))}">
@@ -16,13 +16,13 @@
     </p>
 
     <th:block th:fragment="location(label)" th:switch="${label}">
-        <th:block th:case="'Task độc lập'">Công việc độc lập</th:block>
+        <th:block th:case="'Task độc lập'">Task độc lập</th:block>
         <th:block th:case="*"
                   th:with="goalPrefix='Task trực tiếp của Plan: ', phasePrefix='Task trực tiếp của SubPlan: '">
             <th:block th:if="${#strings.startsWith(label, goalPrefix)}"
-                      th:text="${'Công việc của mục tiêu: ' + #strings.substring(label, #strings.length(goalPrefix))}"></th:block>
+                      th:text="${'Task của mục tiêu: ' + #strings.substring(label, #strings.length(goalPrefix))}"></th:block>
             <th:block th:if="${#strings.startsWith(label, phasePrefix)}"
-                      th:text="${'Công việc của giai đoạn: ' + #strings.substring(label, #strings.length(phasePrefix))}"></th:block>
+                      th:text="${'Task của mục tiêu nhỏ: ' + #strings.substring(label, #strings.length(phasePrefix))}"></th:block>
             <th:block th:unless="${#strings.startsWith(label, goalPrefix) or #strings.startsWith(label, phasePrefix)}"
                       th:text="${label}"></th:block>
         </th:block>

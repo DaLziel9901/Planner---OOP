@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{fragments/layout :: page('Chi tiết công việc con', 'tasks', ~{::main})}">
+      th:replace="~{fragments/layout :: page('Chi tiết Sub Task', 'tasks', ~{::main})}">
 <head><title>Planner</title></head>
 <body>
 <main id="main-content" class="page-content" tabindex="-1">
-    <nav class="planning-breadcrumb" aria-label="Đường dẫn công việc">
+    <nav class="planning-breadcrumb" aria-label="Đường dẫn Task">
         <a th:href="@{/tasks/{id}(id=${task.id})}" th:text="${task.title}"></a>
-        <a th:href="@{/subtasks(taskId=${task.id})}">Các việc nhỏ cùng nhóm</a>
+        <a th:href="@{/subtasks(taskId=${task.id})}">Các Sub Task cùng nhóm</a>
     </nav>
     <div class="planning-heading">
         <h1 th:text="${subTask.title}"></h1>
-        <a class="button" th:href="@{/subtasks/{id}/edit(id=${subTask.id})}">Sửa việc nhỏ</a>
+        <a class="button" th:href="@{/subtasks/{id}/edit(id=${subTask.id})}">Sửa Sub Task</a>
     </div>
     <p th:replace="~{fragments/labels :: flash(${message})}"></p>
     <div class="planning-grid">
@@ -30,15 +30,15 @@
             </dl>
         </section>
         <section class="planning-panel">
-            <h2>Tiến độ công việc cha</h2>
+            <h2>Tiến độ Task cha</h2>
             <div th:replace="~{fragments/progress :: indicator(${progress})}"></div>
         </section>
     </div>
     <section class="danger-panel">
-        <div><h2>Xóa việc nhỏ</h2></div>
+        <div><h2>Xóa Sub Task</h2></div>
         <form class="delete-form" method="post" th:action="@{/subtasks/{id}/delete(id=${subTask.id})}"
-              onsubmit="return confirm('Xóa việc nhỏ này?');">
-            <button type="submit">Xóa việc nhỏ này</button>
+              onsubmit="return confirm('Xóa Sub Task này?');">
+            <button type="submit">Xóa Sub Task này</button>
         </form>
     </section>
 </main>

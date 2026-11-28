@@ -61,7 +61,7 @@ class SubTaskViewTest extends AuthenticatedControllerTest {
         when(service.findByTaskId(OWNER_ID, 7)).thenReturn(List.of());
         Task empty=new Task("Cha"); empty.setId(7L); when(trees.loadTask(OWNER_ID, 7)).thenReturn(new PlanTreeService.TaskSnapshot(empty,null,null));
         mvc.perform(get("/subtasks").param("taskId","7")).andExpect(status().isOk())
-                .andExpect(content().string(containsString("Chưa có SubTask")));
+                .andExpect(content().string(containsString("Chưa có Sub Task")));
         mvc.perform(get("/subtasks")).andExpect(status().isOk()).andExpect(content().string(containsString("Chọn một Task")));
     }
     @Test void formsShowOptionalDateAndOnlyCreationHasTaskControl() throws Exception {
@@ -114,10 +114,10 @@ class SubTaskViewTest extends AuthenticatedControllerTest {
         var created=mvc.perform(post("/subtasks").param("taskId","7").param("title","Tên"))
                 .andExpect(redirectedUrl("/subtasks/9")).andReturn();
         mvc.perform(get("/subtasks/9").flashAttrs(created.getFlashMap())).andExpect(status().isOk())
-                .andExpect(content().string(containsString("Đã tạo SubTask")));
+                .andExpect(content().string(containsString("Đã tạo Sub Task")));
         var edited=mvc.perform(post("/subtasks/9/edit").param("title","Mới"))
                 .andExpect(redirectedUrl("/subtasks/9")).andReturn();
         mvc.perform(get("/subtasks/9").flashAttrs(edited.getFlashMap())).andExpect(status().isOk())
-                .andExpect(content().string(containsString("Đã cập nhật SubTask")));
+                .andExpect(content().string(containsString("Đã cập nhật Sub Task")));
     }
 }

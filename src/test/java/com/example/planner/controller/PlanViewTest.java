@@ -87,7 +87,7 @@ class PlanViewTest extends AuthenticatedControllerTest {
     void createAndEditFormsRenderCurrentDataIncludingNullDates() throws Exception {
         mvc.perform(get("/plans/new")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("action=\"/plans\"")))
-                .andExpect(content().string(containsString("Thêm Plan")));
+                .andExpect(content().string(containsString("Thêm mục tiêu")));
         mvc.perform(get("/plans/1/edit")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("action=\"/plans/1/edit\"")))
                 .andExpect(content().string(containsString("value=\"TOEIC\"")));
@@ -103,7 +103,7 @@ class PlanViewTest extends AuthenticatedControllerTest {
         mvc.perform(post("/plans").param("title", " ")
                         .param("goal", "<script>alert(1)</script>").param("startDate", "abc"))
                 .andExpect(status().isOk()).andExpect(view().name("plans/form"))
-                .andExpect(content().string(containsString("Tên kế hoạch không được để trống")))
+                .andExpect(content().string(containsString("Tên mục tiêu không được để trống")))
                 .andExpect(content().string(containsString("value=\"abc\"")))
                 .andExpect(content().string(containsString("&lt;script&gt;")))
                 .andExpect(content().string(not(containsString("<script>"))));
@@ -141,13 +141,13 @@ class PlanViewTest extends AuthenticatedControllerTest {
                 .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/plans/1"))
                 .andExpect(flash().attribute("message", "Đã tạo kế hoạch"));
         mvc.perform(get("/plans/1").flashAttr("message", "Đã tạo kế hoạch"))
-                .andExpect(status().isOk()).andExpect(content().string(containsString("Đã tạo kế hoạch")));
+                .andExpect(status().isOk()).andExpect(content().string(containsString("Đã tạo mục tiêu")));
     }
 
     @Test void loadedEmptyDoesNotDisplayAnyPercentage() throws Exception {
         doReturn(new PlanTreeService.PlanSnapshot(plan,List.of())).when(trees).loadPlan(OWNER_ID, 1);
         mvc.perform(get("/plans/1")).andExpect(status().isOk())
-                .andExpect(content().string(containsString("Chưa có công việc")))
+                .andExpect(content().string(containsString("Chưa có Sub Task")))
                 .andExpect(content().string(not(containsString("0%"))));
     }
     @Test void listAndDetailRenderFinalRoundedLeafCountsFromSnapshot() throws Exception {
@@ -157,8 +157,8 @@ class PlanViewTest extends AuthenticatedControllerTest {
         loaded.addTask(task);
         doReturn(new PlanTreeService.PlanSnapshot(loaded,List.of())).when(trees).loadPlan(OWNER_ID, 1);
         doReturn(List.of(loaded)).when(trees).loadPlans(OWNER_ID);
-        mvc.perform(get("/plans/1")).andExpect(status().isOk()).andExpect(content().string(containsString("1/3 SubTask — 33,33%")));
-        mvc.perform(get("/plans")).andExpect(status().isOk()).andExpect(content().string(containsString("1/3 SubTask — 33,33%")));
+        mvc.perform(get("/plans/1")).andExpect(status().isOk()).andExpect(content().string(containsString("1/3 Sub Task — 33,33%")));
+        mvc.perform(get("/plans")).andExpect(status().isOk()).andExpect(content().string(containsString("1/3 Sub Task — 33,33%")));
     }
 
     @Test

@@ -1,0 +1,9 @@
+{
+  "DatabaseHost": "localhost",
+  "Port": 5432,
+  "Role": "planner_app",
+  "AiBaseUrl": "https://api.groq.com/openai/v1",
+  "AiModel": "openai/gpt-oss-120b",
+  "AiStrictSchema": true,
+  "AiFlatSchema": true
+}

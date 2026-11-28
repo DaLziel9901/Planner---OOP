@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{fragments/layout :: page(${editing ? 'Sửa giai đoạn' : 'Thêm giai đoạn'}, 'subplans', ~{::main})}">
+      th:replace="~{fragments/layout :: page(${editing ? 'Sửa mục tiêu nhỏ' : 'Thêm mục tiêu nhỏ'}, 'subplans', ~{::main})}">
 <head><title>Planner</title></head>
 <body>
 <main id="main-content" class="page-content page-content--form" tabindex="-1">
@@ -9,7 +9,7 @@
     </a>
     <div class="planning-heading">
         <div>
-            <h1 th:text="${editing ? 'Sửa giai đoạn' : 'Thêm giai đoạn'}"></h1>
+            <h1 th:text="${editing ? 'Sửa mục tiêu nhỏ' : 'Thêm mục tiêu nhỏ'}"></h1>
             <p>Mục tiêu <a th:href="@{/plans} + |#muc-tieu-${plan.id}|" th:text="${plan.title}"></a></p>
         </div>
     </div>
@@ -17,7 +17,7 @@
     <form class="planning-form" method="post" th:action="${formAction}">
         <input type="hidden" name="planId" th:value="${plan.id}">
         <div class="field">
-            <label for="title">Tên giai đoạn <span aria-hidden="true">*</span></label>
+            <label for="title">Tên mục tiêu nhỏ <span aria-hidden="true">*</span></label>
             <input id="title" name="title" th:value="${form['title']}" required maxlength="255"
                    th:attr="aria-invalid=${errors['title'] == null ? null : 'true'},
                             aria-describedby=${errors['title'] == null ? null : 'title-error'}">
@@ -28,7 +28,7 @@
             <textarea id="description" name="description" rows="4" th:text="${form['description']}"></textarea>
         </div>
         <div class="field">
-            <label for="parentSubPlanId">Giai đoạn cha</label>
+            <label for="parentSubPlanId">Mục tiêu nhỏ cha</label>
             <select id="parentSubPlanId" name="parentSubPlanId"
                     th:attr="aria-invalid=${errors['parentSubPlanId'] == null ? null : 'true'},
                              aria-describedby=${errors['parentSubPlanId'] == null ? 'parent-help' : 'parent-error parent-help'}">
@@ -39,7 +39,7 @@
                         th:selected="${form['parentSubPlanId'] == parent.id.toString()}"
                         th:text="|#${parent.id} · ${parent.title}|"></option>
             </select>
-            <p class="field-help" id="parent-help">Có thể lồng tối đa 5 tầng. Chọn một giai đoạn trong cùng mục tiêu.</p>
+            <p class="field-help" id="parent-help">Có thể lồng tối đa 5 tầng. Chọn một mục tiêu nhỏ trong cùng mục tiêu.</p>
             <p class="field-error" id="parent-error" th:if="${errors['parentSubPlanId'] != null}"><th:block th:replace="~{fragments/labels :: feedback(${errors['parentSubPlanId']})}"></th:block></p>
         </div>
         <div class="date-fields">
@@ -55,7 +55,7 @@
             <p class="field-error" id="order-error" th:if="${errors['orderIndex'] != null}"><th:block th:replace="~{fragments/labels :: feedback(${errors['orderIndex']})}"></th:block></p>
         </div>
         <div class="form-actions">
-            <button type="submit">Lưu giai đoạn</button>
+            <button type="submit">Lưu mục tiêu nhỏ</button>
             <a class="button" th:href="@{/plans} + |#muc-tieu-${plan.id}|">Hủy</a>
         </div>
     </form>

@@ -4,8 +4,8 @@
     <div class="node-progress" th:fragment="indicator(progress)"
          th:classappend="${progress.state.name() == 'AVAILABLE' ? 'node-progress--available' : ''}">
         <span th:text="${progress.state.name() == 'AVAILABLE'
-                        ? progress.completedCount + '/' + progress.totalCount + ' việc nhỏ — ' + progress.percentage
-                        : progress.label}"></span>
+                        ? progress.completedCount + '/' + progress.totalCount + ' Sub Task — ' + progress.percentage
+                        : (progress.state.name() == 'EMPTY' ? 'Chưa có Sub Task' : progress.label)}"></span>
         <progress th:if="${progress.state.name() == 'AVAILABLE'}"
                   th:value="${progress.completedCount}" th:max="${progress.totalCount}"
                   aria-hidden="true"></progress>

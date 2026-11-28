@@ -8,9 +8,10 @@ import java.util.regex.Pattern;
 
 public final class DatabaseTargetGuard {
     private static final String DATABASE = "planner_auth_test";
+    static final String RELEASE_DATABASE = "planner_release";
     private static final Pattern TARGET = Pattern.compile(
             "jdbc:postgresql://(?:[A-Za-z0-9][A-Za-z0-9.-]*|\\[[0-9A-Fa-f:]+\\])(?::([0-9]{1,5}))?/"
-                    + DATABASE);
+                    + "(" + DATABASE + "|" + RELEASE_DATABASE + ")");
     private static final Pattern NAME = Pattern.compile("[a-z_][a-z0-9_]{0,62}");
     private static final String IDENTITY_SQL = """
             SELECT pg_catalog.current_database(), pg_catalog.current_schema(), CURRENT_USER,
@@ -74,7 +75,7 @@ public final class DatabaseTargetGuard {
     public static void verifyRuntimeSettings(Environment environment) {
         String url = environment.getProperty("spring.datasource.url");
         String role = environment.getProperty("spring.datasource.username");
-        verifyTarget(url, role);
+        verifyTarget(url, role, null);
         if (environment.containsProperty("spring.datasource.jndi-name")
                 || environment.containsProperty("spring.datasource.hikari.jdbc-url")) {
             throw new IllegalArgumentException("Alternate DataSource targets are disabled for Planner 003");
@@ -85,30 +86,45 @@ public final class DatabaseTargetGuard {
     }
 
     public static void verifySameTarget(String appUrl, String appRole, String testUrl, String testRole) {
-        verifyTarget(appUrl, appRole);
-        verifyTarget(testUrl, testRole);
+        verifyTarget(appUrl, appRole, DATABASE);
+        verifyTarget(testUrl, testRole, DATABASE);
         if (!appUrl.equals(testUrl) || !appRole.equals(testRole)) {
             throw new IllegalArgumentException("App and tests must use the same explicit Planner 003 database and role");
         }
     }
 
-    private static void verifyTarget(String url, String role) {
+    private static String verifyTarget(String url, String role, String requiredDatabase) {
         var match = TARGET.matcher(url == null ? "" : url);
-        if (!match.matches()) {
-            throw new IllegalArgumentException("Use an explicit single-host JDBC URL for planner_auth_test without URL options");
+        if (!match.matches() || (requiredDatabase != null && !requiredDatabase.equals(match.group(2)))) {
+            throw new IllegalArgumentException("Use a single-host JDBC URL without options for "
+                    + (requiredDatabase == null ? "planner_release or planner_auth_test" : requiredDatabase));
         }
         String port = match.group(1);
         if (port != null && (Integer.parseInt(port) == 0 || Integer.parseInt(port) > 65535)) {
             throw new IllegalArgumentException("Invalid PostgreSQL port");
         }
         if (role == null || !NAME.matcher(role).matches() || "postgres".equals(role) || role.startsWith("pg_")) {
-            throw new IllegalArgumentException("Set an explicit dedicated PostgreSQL test role");
+            throw new IllegalArgumentException("Set an explicit dedicated non-superuser PostgreSQL role");
         }
+        return match.group(2);
     }
 
     public static Connection openVerified(String url, String role, String password, String schema,
                                           Connector connector) throws SQLException {
-        verifyTarget(url, role);
+        return openVerified(url, role, password, schema, DATABASE, connector);
+    }
+
+    public static Connection openRuntime(String url, String role, String password, Connector connector) throws SQLException {
+        return openVerified(url, role, password, "public", null, connector);
+    }
+
+    static Connection openRelease(String url, String role, String password, Connector connector) throws SQLException {
+        return openVerified(url, role, password, "public", RELEASE_DATABASE, connector);
+    }
+
+    private static Connection openVerified(String url, String role, String password, String schema,
+                                           String requiredDatabase, Connector connector) throws SQLException {
+        String database = verifyTarget(url, role, requiredDatabase);
         if (schema == null || !NAME.matcher(schema).matches() || password == null || password.isEmpty()) {
             throw new IllegalArgumentException("Schema and PostgreSQL credentials must be explicit");
         }
@@ -118,7 +134,7 @@ public final class DatabaseTargetGuard {
             throw new SQLException("Could not verify the Planner 003 connection");
         }
         try {
-            verifyIdentity(connection, role, schema);
+            verifyIdentity(connection, role, schema, database);
             return connection;
         } catch (SQLException | RuntimeException failure) {
             try {
@@ -131,22 +147,30 @@ public final class DatabaseTargetGuard {
     }
 
     public static void verifyIdentity(Connection connection, String role, String schema) throws SQLException {
+        verifyIdentity(connection, role, schema, DATABASE);
+    }
+
+    private static void verifyIdentity(Connection connection, String role, String schema, String database) throws SQLException {
         try (var statement = connection.createStatement();
              var row = statement.executeQuery(IDENTITY_SQL)) {
-            if (!row.next() || !DATABASE.equals(row.getString(1)) || !schema.equals(row.getString(2))
+            if (!row.next() || !database.equals(row.getString(1)) || !schema.equals(row.getString(2))
                     || !role.equals(row.getString(3)) || !row.getBoolean(4) || row.wasNull()
                     || row.getBoolean(5) || row.wasNull() || row.next()) {
-                throw new SQLException("PostgreSQL database, schema, search path or role is not the configured test identity");
+                throw new SQLException("PostgreSQL database, schema, search path or role does not match the configured identity");
             }
         }
     }
 
     public static void verifyRuntimeCatalog(Connection connection) throws SQLException {
+        if (!hasRuntimeCatalog(connection)) {
+            throw new SQLException("Planner requires the complete 003 catalog in public before startup");
+        }
+    }
+
+    static boolean hasRuntimeCatalog(Connection connection) throws SQLException {
         try (var statement = connection.createStatement();
              var row = statement.executeQuery(RUNTIME_CATALOG_SQL)) {
-            if (!row.next() || !row.getBoolean(1)) {
-                throw new SQLException("Planner requires the complete 003 catalog in public before startup");
-            }
+            return row.next() && row.getBoolean(1);
         }
     }
 }

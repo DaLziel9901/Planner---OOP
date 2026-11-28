@@ -157,7 +157,7 @@ class TaskViewTest extends AuthenticatedControllerTest {
                 .andExpect(content().string(containsString("method=\"post\" action=\"/subtasks/9/completion\"")))
                 .andExpect(content().string(containsString("name=\"source\" value=\"task\"")))
                 .andExpect(content().string(containsString("&lt;script&gt;")))
-                .andExpect(content().string(containsString("0/1 SubTask — 0%")))
+                .andExpect(content().string(containsString("0/1 Sub Task — 0%")))
                 .andExpect(model().attribute("progressAvailable",true));
     }
 }

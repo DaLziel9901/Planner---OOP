@@ -34,22 +34,22 @@
             <div class="section-heading goal-panel__tree-heading">
                 <h3>Các việc trong mục tiêu</h3>
                 <div class="goal-panel__actions">
-                    <a class="button button--primary" th:href="@{/subplans/new(planId=${plan.id})}">+ Giai đoạn</a>
-                    <a class="button" th:href="@{/tasks/new(planId=${plan.id})}">+ Công việc</a>
+                    <a class="button button--primary" th:href="@{/subplans/new(planId=${plan.id})}">+ Mục tiêu nhỏ</a>
+                    <a class="button" th:href="@{/tasks/new(planId=${plan.id})}">+ Task</a>
                 </div>
             </div>
             <div th:if="${available}">
                 <p class="home-state" th:if="${#lists.isEmpty(plan.children)}">
-                    Mục tiêu này chưa có công việc. Bạn có thể thêm một giai đoạn hoặc một công việc trực tiếp.
+                    Mục tiêu này chưa có mục tiêu nhỏ hoặc Task. Bạn có thể thêm một mục tiêu nhỏ hoặc một Task trực tiếp.
                 </p>
                 <th:block th:unless="${#lists.isEmpty(plan.children)}">
                     <ul th:replace="~{fragments/workspace-goals :: tree(${plan.subPlans}, ${plan.tasks}, ${plan.id})}"></ul>
                 </th:block>
             </div>
-            <p class="home-state" th:unless="${available}">Chưa tải được cây công việc. Bạn vẫn có thể mở danh sách bên dưới.</p>
+            <p class="home-state" th:unless="${available}">Chưa tải được cây mục tiêu. Bạn vẫn có thể mở danh sách bên dưới.</p>
             <div class="goal-panel__actions goal-panel__links">
-                <a th:href="@{/subplans(planId=${plan.id})}">Danh sách giai đoạn</a>
-                <a th:href="@{/tasks(planId=${plan.id})}">Công việc trực tiếp</a>
+                <a th:href="@{/subplans(planId=${plan.id})}">Danh sách mục tiêu nhỏ</a>
+                <a th:href="@{/tasks(planId=${plan.id})}">Task trực tiếp</a>
             </div>
         </div>
     </article>
@@ -60,13 +60,13 @@
                 <div class="goal-node-heading">
                     <span class="goal-node-icon goal-node-icon--phase" aria-hidden="true"></span>
                     <div class="goal-node-copy">
-                        <span class="goal-node-type">Giai đoạn</span>
+                        <span class="goal-node-type">Mục tiêu nhỏ</span>
                         <a class="goal-node-label" th:href="@{/subplans/{id}(id=${phase.id})}" th:text="${phase.title}"></a>
                     </div>
                 </div>
                 <div class="goal-node-actions">
                     <span th:replace="~{fragments/workspace-goals :: counts(${phase})}"></span>
-                    <a class="button" th:href="@{/tasks/new(subPlanId=${phase.id})}">+ Công việc</a>
+                    <a class="button" th:href="@{/tasks/new(subPlanId=${phase.id})}">+ Task</a>
                 </div>
             </div>
             <details class="goal-node-children" open th:unless="${#lists.isEmpty(phase.children)}">
@@ -79,17 +79,17 @@
                 <div class="goal-node-heading">
                     <span class="goal-node-icon goal-node-icon--task" aria-hidden="true"></span>
                     <div class="goal-node-copy">
-                        <span class="goal-node-type">Công việc</span>
+                        <span class="goal-node-type">Task</span>
                         <a class="goal-node-label" th:href="@{/tasks/{id}(id=${task.id})}" th:text="${task.title}"></a>
                     </div>
                 </div>
                 <div class="goal-node-actions">
                     <span th:replace="~{fragments/workspace-goals :: counts(${task})}"></span>
-                    <a class="button" th:href="@{/subtasks/new(taskId=${task.id})}">+ Việc nhỏ</a>
+                    <a class="button" th:href="@{/subtasks/new(taskId=${task.id})}">+ Sub Task</a>
                 </div>
             </div>
             <details class="goal-node-children" open th:unless="${#lists.isEmpty(task.subTasks)}">
-                <summary class="goal-expand" th:text="|${#lists.size(task.subTasks)} việc nhỏ|"></summary>
+                <summary class="goal-expand" th:text="|${#lists.size(task.subTasks)} Sub Task|"></summary>
                 <ul class="goal-tree">
                     <li class="goal-tree-node" th:each="leaf : ${task.subTasks}">
                         <div class="goal-node-row goal-node-row--leaf" data-workspace-leaf
@@ -97,7 +97,7 @@
                             <div class="goal-node-heading">
                                 <span class="goal-node-icon goal-node-icon--leaf" aria-hidden="true"></span>
                                 <div class="goal-node-copy">
-                                    <span class="goal-node-type">Việc nhỏ</span>
+                                    <span class="goal-node-type">Sub Task</span>
                                     <a class="goal-node-label" th:href="@{/subtasks/{id}(id=${leaf.id})}" th:text="${leaf.title}"></a>
                                     <p class="item-meta goal-node-date" th:if="${leaf.scheduledDate != null}">
                                         Dự kiến <span th:replace="~{fragments/planning :: date(${leaf.scheduledDate})}"></span>
@@ -117,6 +117,6 @@
 
     <span class="item-meta goal-node-count" th:fragment="counts(node)"
           th:with="total=${node.totalCount}"
-          th:text="${total == 0 ? 'Chưa có việc nhỏ' : node.completedCount + '/' + total + ' việc nhỏ đã xong'}"></span>
+          th:text="${total == 0 ? 'Chưa có Sub Task' : node.completedCount + '/' + total + ' Sub Task đã xong'}"></span>
 </body>
 </html>

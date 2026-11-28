@@ -19,8 +19,28 @@ import static org.mockito.Mockito.*;
 
 class DatabaseTargetGuardTest {
     private static final String URL = "jdbc:postgresql://localhost:5432/planner_auth_test";
+    private static final String RELEASE_URL = "jdbc:postgresql://localhost:5432/planner_release";
     private static final String ROLE = "planner_auth_test_user";
     private static final String SCHEMA = "public";
+
+    @Test
+    void releaseRuntimeChecksIdentityAndTestOrBootstrapEntryPointsStaySeparate() throws SQLException {
+        var connector = mock(DatabaseTargetGuard.Connector.class);
+        assertThrows(IllegalArgumentException.class, () -> open(RELEASE_URL, ROLE, SCHEMA, connector));
+        assertThrows(IllegalArgumentException.class,
+                () -> DatabaseTargetGuard.verifySameTarget(RELEASE_URL, ROLE, RELEASE_URL, ROLE));
+        assertThrows(IllegalArgumentException.class,
+                () -> DatabaseTargetGuard.openRelease(URL, ROLE, "fixture", connector));
+        verifyNoInteractions(connector);
+
+        var correct = connection("planner_release", SCHEMA, ROLE, true, false);
+        var wrong = connection("planner_auth_test", SCHEMA, ROLE, true, false);
+        when(connector.connect(RELEASE_URL, ROLE, "fixture")).thenReturn(correct, wrong);
+        assertSame(correct, DatabaseTargetGuard.openRuntime(RELEASE_URL, ROLE, "fixture", connector));
+        assertThrows(SQLException.class,
+                () -> DatabaseTargetGuard.openRelease(RELEASE_URL, ROLE, "fixture", connector));
+        verify(wrong).close();
+    }
 
     @ParameterizedTest
     @NullAndEmptySource

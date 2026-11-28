@@ -49,7 +49,7 @@
     const update = form.querySelector('[data-ai-update]');
     const confirmButton = confirmForm.querySelector('button[type="submit"]');
     let editing = false;
-    const kinds = {plan: 'Mục tiêu', subPlans: 'Giai đoạn', tasks: 'Công việc', subTasks: 'Việc nhỏ'};
+    const kinds = {plan: 'Mục tiêu', subPlans: 'Mục tiêu nhỏ', tasks: 'Task', subTasks: 'Sub Task'};
 
     function element(tag, className, text) {
         const node = document.createElement(tag);

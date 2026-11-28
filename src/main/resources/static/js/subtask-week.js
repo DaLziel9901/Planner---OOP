@@ -32,8 +32,8 @@
 
             empty.hidden = visibleCount !== 0;
             summary.textContent = week
-                ? `Tuần ${dateLabel.format(week.monday)} – ${dateLabel.format(week.sunday)} · ${visibleCount} việc nhỏ`
-                : `Tất cả ${visibleCount} việc nhỏ`;
+                ? `Tuần ${dateLabel.format(week.monday)} – ${dateLabel.format(week.sunday)} · ${visibleCount} Sub Task`
+                : `Tất cả ${visibleCount} Sub Task`;
         }
 
         function applySelection() {

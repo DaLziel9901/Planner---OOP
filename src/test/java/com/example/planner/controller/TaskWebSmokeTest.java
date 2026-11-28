@@ -148,7 +148,7 @@ class TaskWebSmokeTest {
         assertEquals(detail, redirectPath(confirmed));
         var page = request(browser, detail, null);
         assertEquals(200, page.statusCode());
-        assertTrue(page.body().contains("0/2 SubTask"));
+        assertTrue(page.body().contains("0/2 Sub Task"));
         assertEquals(404, request(browser, "/ai/plans/confirm", Map.of("draftId", editedId)).statusCode());
         assertEquals(1, plans.findAll(ownerId).size());
     }
@@ -258,7 +258,7 @@ class TaskWebSmokeTest {
             var detail = request(client, detailPath, null);
             assertEquals(200, detail.statusCode()); assertTrue(detail.body().contains("Đã tạo Task"));
             assertTrue(detail.body().contains("&lt;script&gt;hello&lt;/script&gt;"));
-            assertTrue(detail.body().contains("Chưa có công việc")); assertFalse(detail.body().contains("0%"));
+            assertTrue(detail.body().contains("Chưa có Sub Task")); assertFalse(detail.body().contains("0%"));
             assertTrue(detail.body().contains("href=\"/subtasks/new?taskId=" + id + "\""));
             OffsetDateTime createdAt = jdbc.queryForObject("SELECT created_at FROM task WHERE id=?", OffsetDateTime.class, id);
             assertEquals(200, request(client, detailPath + "/edit", null).statusCode());
@@ -408,7 +408,7 @@ class TaskWebSmokeTest {
                 var saved=subTasks.getById(ownerId, id); assertEquals(parent,saved.getTaskId()); assertNull(saved.getScheduledDate());
                 assertFalse(saved.isDone()); assertNull(saved.getCompletedAt()); var createdAt=saved.getCreatedAt().toInstant();
                 var detail=request(client,path,null); assertEquals(200,detail.statusCode());
-                assertTrue(detail.body().contains("Đã tạo SubTask")); assertTrue(detail.body().contains("&lt;script&gt;leaf&lt;/script&gt;"));
+                assertTrue(detail.body().contains("Đã tạo Sub Task")); assertTrue(detail.body().contains("&lt;script&gt;leaf&lt;/script&gt;"));
                 assertTrue(detail.body().contains("href=\"/tasks/" + parent + "\""));
                 assertTrue(detail.body().contains(path + "/completion"));
                 assertTrue(request(client,"/tasks/" + parent,null).body().contains(title));
@@ -424,7 +424,7 @@ class TaskWebSmokeTest {
                 var edited=request(client,path + "/edit",Map.of("title",title + " edit","taskId","999999999",
                         "scheduledDate","2027-01-01","orderIndex","2","done","false","completedAt","fake","createdAt","fake"));
                 assertEquals(302,edited.statusCode()); assertEquals(path,redirectPath(edited));
-                var after=request(client,path,null); assertEquals(200,after.statusCode()); assertTrue(after.body().contains("Đã cập nhật SubTask"));
+                var after=request(client,path,null); assertEquals(200,after.statusCode()); assertTrue(after.body().contains("Đã cập nhật Sub Task"));
                 saved=subTasks.getById(ownerId, id); assertEquals(parent,saved.getTaskId()); assertTrue(saved.isDone());
                 assertEquals(completed.toInstant(),saved.getCompletedAt().toInstant()); assertEquals(createdAt,saved.getCreatedAt().toInstant());
                 assertEquals(java.time.LocalDate.of(2027,1,1),saved.getScheduledDate());
@@ -502,15 +502,15 @@ class TaskWebSmokeTest {
             String detail = "/subtasks/" + leaf;
             String endpoint = detail + "/completion";
             var http = client();
-            assertTrue(request(http, taskPage, null).body().contains("0/1 SubTask"));
+            assertTrue(request(http, taskPage, null).body().contains("0/1 Sub Task"));
 
             var tick = request(http, endpoint, Map.of("done", "true", "source", "task",
                     "sourceId", Long.toString(parent), "completedAt", "2001-01-01T00:00:00Z"));
             assertEquals(302, tick.statusCode());
             assertEquals(taskPage, redirectPath(tick));
             String afterTick = request(http, redirectPath(tick), null).body();
-            assertTrue(afterTick.contains("Đã đánh dấu hoàn thành SubTask"));
-            assertTrue(afterTick.contains("1/1 SubTask"));
+            assertTrue(afterTick.contains("Đã đánh dấu hoàn thành Sub Task"));
+            assertTrue(afterTick.contains("1/1 Sub Task"));
             assertTrue(afterTick.contains("Bỏ đánh dấu hoàn thành"));
             var saved = subTasks.getById(ownerId, leaf);
             assertTrue(saved.isDone());
@@ -542,9 +542,9 @@ class TaskWebSmokeTest {
             assertEquals(302, undo.statusCode());
             assertEquals(listPage, redirectPath(undo));
             String afterUndo = request(http, redirectPath(undo), null).body();
-            assertTrue(afterUndo.contains("Đã bỏ đánh dấu hoàn thành SubTask"));
+            assertTrue(afterUndo.contains("Đã bỏ đánh dấu hoàn thành Sub Task"));
             assertTrue(afterUndo.contains("Chưa hoàn thành"));
-            assertTrue(afterUndo.contains("0/1 SubTask"));
+            assertTrue(afterUndo.contains("0/1 Sub Task"));
             var undone = subTasks.getById(ownerId, leaf);
             assertFalse(undone.isDone());
             assertNull(undone.getCompletedAt());
@@ -568,38 +568,38 @@ class TaskWebSmokeTest {
             jdbc.update("UPDATE sub_task SET done=true, completed_at=CURRENT_TIMESTAMP WHERE id IN (?,?)",done,freeDone);
             List<Long> leafIds=new ArrayList<>(); for(int i=0;i<3;i++) leafIds.add(subTasks.create(ownerId, nested,"Leaf " + i,"",null,0));
             var client=client();
-            assertTrue(request(client,"/plans/" + plan,null).body().contains("1/4 SubTask — 25%"));
-            assertTrue(request(client,"/plans",null).body().contains("1/4 SubTask — 25%"));
-            assertTrue(request(client,"/subplans/" + first,null).body().contains("0/3 SubTask — 0%"));
-            assertTrue(request(client,"/subplans?planId=" + plan,null).body().contains("0/3 SubTask — 0%"));
-            assertTrue(request(client,"/tasks?planId=" + plan,null).body().contains("1/1 SubTask — 100%"));
-            assertTrue(request(client,"/tasks?subPlanId=" + deep,null).body().contains("0/3 SubTask — 0%"));
+            assertTrue(request(client,"/plans/" + plan,null).body().contains("1/4 Sub Task — 25%"));
+            assertTrue(request(client,"/plans",null).body().contains("1/4 Sub Task — 25%"));
+            assertTrue(request(client,"/subplans/" + first,null).body().contains("0/3 Sub Task — 0%"));
+            assertTrue(request(client,"/subplans?planId=" + plan,null).body().contains("0/3 Sub Task — 0%"));
+            assertTrue(request(client,"/tasks?planId=" + plan,null).body().contains("1/1 Sub Task — 100%"));
+            assertTrue(request(client,"/tasks?subPlanId=" + deep,null).body().contains("0/3 Sub Task — 0%"));
             String firstLeaf = "/subtasks/" + leafIds.get(0);
             var completed = request(client, firstLeaf + "/completion", Map.of("done", "true"));
             assertEquals(302, completed.statusCode());
             assertEquals(firstLeaf, redirectPath(completed));
             String detail = request(client, redirectPath(completed), null).body();
             assertTrue(detail.contains("Bỏ đánh dấu hoàn thành"));
-            assertTrue(detail.contains("1/3 SubTask — 33,33%"));
-            assertTrue(request(client,"/tasks/" + nested,null).body().contains("1/3 SubTask — 33,33%"));
-            assertTrue(request(client,"/subtasks?taskId=" + nested,null).body().contains("1/3 SubTask — 33,33%"));
+            assertTrue(detail.contains("1/3 Sub Task — 33,33%"));
+            assertTrue(request(client,"/tasks/" + nested,null).body().contains("1/3 Sub Task — 33,33%"));
+            assertTrue(request(client,"/subtasks?taskId=" + nested,null).body().contains("1/3 Sub Task — 33,33%"));
             var second = request(client, "/subtasks/" + leafIds.get(1) + "/completion",
                     Map.of("done", "true", "source", "subplan", "sourceId", Long.toString(first)));
             assertEquals(302, second.statusCode());
             assertEquals("/subplans/" + first, redirectPath(second));
-            assertTrue(request(client, redirectPath(second), null).body().contains("2/3 SubTask — 66,67%"));
-            assertTrue(request(client,"/tasks/" + nested,null).body().contains("2/3 SubTask — 66,67%"));
-            assertTrue(request(client,"/plans/" + plan,null).body().contains("3/4 SubTask — 75%"));
+            assertTrue(request(client, redirectPath(second), null).body().contains("2/3 Sub Task — 66,67%"));
+            assertTrue(request(client,"/tasks/" + nested,null).body().contains("2/3 Sub Task — 66,67%"));
+            assertTrue(request(client,"/plans/" + plan,null).body().contains("3/4 Sub Task — 75%"));
             for(long id:leafIds) subTasks.delete(ownerId, id);
             String emptyTask=request(client,"/tasks/" + nested,null).body();
-            assertTrue(emptyTask.contains("Chưa có công việc")); assertFalse(emptyTask.contains("0%"));
+            assertTrue(emptyTask.contains("Chưa có Sub Task")); assertFalse(emptyTask.contains("0%"));
             subTasks.delete(ownerId, done);
             String emptyPlan=request(client,"/plans/" + plan,null).body();
-            assertTrue(emptyPlan.contains("Chưa có công việc")); assertFalse(emptyPlan.contains("0%"));
+            assertTrue(emptyPlan.contains("Chưa có Sub Task")); assertFalse(emptyPlan.contains("0%"));
             var created=request(client,"/subtasks",Map.of("taskId",Long.toString(nested),"title","New leaf after empty"));
             assertEquals(302,created.statusCode());
-            assertTrue(request(client,redirectPath(created),null).body().contains("0/1 SubTask — 0%"));
-            assertTrue(request(client,"/plans/" + plan,null).body().contains("0/1 SubTask — 0%"));
+            assertTrue(request(client,redirectPath(created),null).body().contains("0/1 Sub Task — 0%"));
+            assertTrue(request(client,"/plans/" + plan,null).body().contains("0/1 Sub Task — 0%"));
         } finally {
             if(free!=null) jdbc.update("DELETE FROM task WHERE id=?",free);
             jdbc.update("DELETE FROM plan WHERE id=?",plan);

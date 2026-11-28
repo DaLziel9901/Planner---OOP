@@ -14,10 +14,10 @@
     <section class="danger-panel">
         <div>
             <h2>Xóa mục tiêu</h2>
-            <p>Tất cả giai đoạn, công việc và việc nhỏ thuộc mục tiêu này cũng sẽ bị xóa.</p>
+            <p>Tất cả mục tiêu nhỏ, Task và Sub Task thuộc mục tiêu này cũng sẽ bị xóa.</p>
         </div>
         <form method="post" th:action="@{/plans/{id}/delete(id=${plan.id})}" class="delete-form"
-              onsubmit="return confirm('Xóa mục tiêu này và toàn bộ giai đoạn, công việc, việc nhỏ bên dưới?');">
+              onsubmit="return confirm('Xóa mục tiêu này và toàn bộ mục tiêu nhỏ, Task, Sub Task bên dưới?');">
             <button type="submit">Xóa mục tiêu</button>
         </form>
     </section>

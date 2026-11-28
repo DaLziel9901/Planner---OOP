@@ -6,7 +6,7 @@
         <div class="insights-heading workspace-banner">
             <div>
                 <h1 id="calendar-title">Lịch mục tiêu</h1>
-                <p>Chọn ngày để xem các việc nhỏ theo lịch dự kiến.</p>
+                <p>Chọn ngày để xem các Sub Task theo lịch dự kiến.</p>
             </div>
         </div>
         <div class="empty-panel" th:unless="${progressAvailable}">
@@ -15,7 +15,7 @@
         </div>
         <div class="empty-panel" th:if="${progressAvailable and #lists.isEmpty(plans)}">
             <h2>Chưa có mục tiêu</h2>
-            <p>Thêm việc nhỏ có ngày dự kiến để đưa chúng vào lịch.</p>
+            <p>Thêm Sub Task có ngày dự kiến để đưa chúng vào lịch.</p>
             <a class="button button--primary" th:href="@{/plans/new}">Tạo mục tiêu</a>
         </div>
         <th:block th:if="${progressAvailable and !#lists.isEmpty(plans)}">
@@ -59,7 +59,7 @@
                 </section>
                 <section class="insight-card" aria-labelledby="calendar-list-title">
                     <div class="insight-card__header">
-                        <h2 id="calendar-list-title">Việc nhỏ trong lịch</h2>
+                        <h2 id="calendar-list-title">Sub Task trong lịch</h2>
                         <label class="calendar-done-toggle">
                             <input type="checkbox" data-calendar-done checked>
                             Hiện việc đã xong
@@ -72,7 +72,7 @@
                     </div>
                     <p class="insight-caption" data-calendar-summary aria-live="polite"></p>
                     <ul class="insight-list" data-calendar-items></ul>
-                    <p class="insight-empty" data-calendar-empty hidden>Chưa có việc nhỏ phù hợp.</p>
+                    <p class="insight-empty" data-calendar-empty hidden>Chưa có Sub Task phù hợp.</p>
                 </section>
             </div>
         </th:block>
@@ -82,7 +82,7 @@
         <div class="insights-heading workspace-banner">
             <div>
                 <h1 id="stats-title">Thống kê</h1>
-                <p>Theo dõi tiến độ từ các việc nhỏ trong từng kế hoạch.</p>
+                <p>Theo dõi tiến độ từ các Sub Task trong từng kế hoạch.</p>
             </div>
         </div>
         <div class="empty-panel" th:unless="${progressAvailable}">
@@ -91,14 +91,14 @@
         </div>
         <div class="empty-panel" th:if="${progressAvailable and #lists.isEmpty(plans)}">
             <h2>Chưa có mục tiêu</h2>
-            <p>Tiến độ sẽ xuất hiện khi bạn thêm việc nhỏ vào kế hoạch.</p>
+            <p>Tiến độ sẽ xuất hiện khi bạn thêm Sub Task vào kế hoạch.</p>
             <a class="button button--primary" th:href="@{/plans/new}">Tạo mục tiêu</a>
         </div>
         <th:block th:if="${progressAvailable and !#lists.isEmpty(plans)}">
             <div class="insights-stats" data-stats>
                 <dl class="insight-metrics" data-stats-metrics hidden>
                     <div><dt>Mục tiêu</dt><dd data-metric="plans"></dd></div>
-                    <div><dt>Việc nhỏ</dt><dd data-metric="total"></dd></div>
+                    <div><dt>Sub Task</dt><dd data-metric="total"></dd></div>
                     <div><dt>Đã xong</dt><dd data-metric="completed"></dd></div>
                     <div><dt>Chưa xong</dt><dd data-metric="pending"></dd></div>
                 </dl>
@@ -141,8 +141,8 @@
                         <li class="insight-legend__pending">Chưa xong, chưa đến hạn</li>
                         <li class="insight-legend__overdue">Đến hạn hoặc quá hạn</li>
                     </ul>
-                    <ul class="weekly-chart" data-stats-chart aria-label="Số việc nhỏ mỗi ngày"></ul>
-                    <p class="insight-empty" data-stats-empty hidden>Tuần này chưa có việc nhỏ được xếp lịch.</p>
+                    <ul class="weekly-chart" data-stats-chart aria-label="Số Sub Task mỗi ngày"></ul>
+                    <p class="insight-empty" data-stats-empty hidden>Tuần này chưa có Sub Task được xếp lịch.</p>
                     <p class="insight-caption">Biểu đồ dùng ngày dự kiến và trạng thái hiện tại của từng việc.</p>
                 </section>
             </div>

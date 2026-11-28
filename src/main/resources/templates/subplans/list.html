@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{fragments/layout :: page('Danh sách giai đoạn', 'subplans', ~{::main})}">
+      th:replace="~{fragments/layout :: page('Danh sách mục tiêu nhỏ', 'subplans', ~{::main})}">
 <head><title>Planner</title></head>
 <body>
 <main id="main-content" class="page-content" tabindex="-1">
     <div class="planning-heading">
-        <div><h1>Giai đoạn</h1></div>
+        <div><h1>Mục tiêu nhỏ</h1></div>
         <a class="button" th:href="@{/plans/new}">Thêm mục tiêu</a>
     </div>
     <p th:replace="~{fragments/labels :: flash(${message})}"></p>
@@ -19,11 +19,11 @@
                         th:text="|#${item.id} · ${item.title}|"></option>
             </select>
         </div>
-        <button type="submit">Xem giai đoạn</button>
+        <button type="submit">Xem mục tiêu nhỏ</button>
     </form>
     <section class="empty-panel" th:if="${plan == null}">
-        <h2 th:text="${#lists.isEmpty(plans) ? 'Chưa có mục tiêu' : 'Chọn mục tiêu để xem các giai đoạn'}"></h2>
-        <p th:if="${#lists.isEmpty(plans)}">Bạn có thể thêm giai đoạn sau khi tạo mục tiêu.</p>
+        <h2 th:text="${#lists.isEmpty(plans) ? 'Chưa có mục tiêu' : 'Chọn mục tiêu để xem các mục tiêu nhỏ'}"></h2>
+        <p th:if="${#lists.isEmpty(plans)}">Bạn có thể thêm mục tiêu nhỏ sau khi tạo mục tiêu.</p>
     </section>
     <section class="planning-panel branch-panel" th:if="${plan != null}">
         <div class="section-heading">
@@ -32,11 +32,11 @@
                 <a th:href="@{/plans} + |#muc-tieu-${plan.id}|">Về mục tiêu</a>
             </div>
             <a class="button button--primary" th:href="@{/subplans/new(planId=${plan.id})}">
-                <span aria-hidden="true">+</span> Thêm giai đoạn
+                <span aria-hidden="true">+</span> Thêm mục tiêu nhỏ
             </a>
         </div>
-        <p class="planning-state" th:if="${!progressAvailable}">Chưa tải đầy đủ cây giai đoạn.</p>
-        <p class="planning-state" th:if="${progressAvailable and #lists.isEmpty(subPlans)}">Mục tiêu này chưa có giai đoạn.</p>
+        <p class="planning-state" th:if="${!progressAvailable}">Chưa tải đầy đủ cây mục tiêu nhỏ.</p>
+        <p class="planning-state" th:if="${progressAvailable and #lists.isEmpty(subPlans)}">Mục tiêu này chưa có mục tiêu nhỏ.</p>
         <th:block th:if="${progressAvailable and !#lists.isEmpty(subPlans)}">
             <ul th:replace="~{fragments/planning :: branch(${subPlans.?[parentSubPlanId == null]}, ${subPlans}, ${progressById})}"></ul>
         </th:block>
