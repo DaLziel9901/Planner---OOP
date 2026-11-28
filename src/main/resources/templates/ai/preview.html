@@ -3,22 +3,43 @@
       th:replace="~{fragments/layout :: page('Bản nháp kế hoạch', 'ai', ~{::main})}">
 <head><meta charset="UTF-8"><title>Bản nháp kế hoạch</title></head>
 <body>
-<main id="main-content" class="page-content" tabindex="-1">
-    <h1 th:text="${draftTitle}">Bản nháp kế hoạch</h1>
-    <p th:if="${error}" th:text="${error}" role="alert"></p>
-    <form method="post" th:action="@{/ai/plans/edit}">
+<main id="main-content" class="page-content ai-page" tabindex="-1">
+    <a class="back-link" th:href="@{/plans}"><span aria-hidden="true">←</span> Kế hoạch</a>
+    <header class="planning-heading workspace-banner">
+        <div>
+            <h1>Xem lại bản nháp</h1>
+            <p>Kiểm tra nội dung và lịch dự kiến. Khi bạn chọn “Lưu kế hoạch”, mục tiêu này sẽ xuất hiện trong Kế hoạch.</p>
+        </div>
+    </header>
+    <p th:if="${error != null}" th:text="${error}" role="alert"></p>
+    <p th:if="${error == null and param.draftId != null}" role="status">Đã cập nhật bản nháp.</p>
+    <form class="planning-panel ai-preview" method="post" th:action="@{/ai/plans/edit}"
+          data-ai-draft th:attr="data-edit-error=${error != null}">
         <input type="hidden" name="draftId" th:value="${draftId}">
-        <p><label>Chỉnh sửa bản nháp JSON
-            <textarea name="json" rows="30" cols="80" required maxlength="256000"
-                      th:text="${submittedJson ?: draftJson}"></textarea>
-        </label></p>
-        <button>Cập nhật bản nháp</button>
+        <div class="section-heading">
+            <h2 th:text="${draftTitle}">Mục tiêu</h2>
+            <button type="button" data-ai-edit aria-controls="ai-outline" aria-pressed="false" hidden>Sửa nội dung</button>
+        </div>
+        <div id="ai-outline" hidden></div>
+        <details class="ai-advanced" data-ai-advanced open>
+            <summary>Sửa cấu trúc bằng JSON</summary>
+            <label for="ai-json">Nội dung bản nháp</label>
+            <p class="field-help" id="ai-json-help">Bạn có thể thêm, bỏ hoặc sắp xếp lại các mục ở đây. Chọn “Cập nhật bản nháp” để áp dụng thay đổi.</p>
+            <textarea id="ai-json" name="json" rows="14" required maxlength="256000" spellcheck="false"
+                      aria-describedby="ai-json-help" th:text="${submittedJson != null ? submittedJson : draftJson}"></textarea>
+        </details>
+        <div class="ai-update" data-ai-update>
+            <p role="alert" hidden data-ai-validation></p>
+            <button class="button--primary" type="submit">Cập nhật bản nháp</button>
+        </div>
     </form>
-    <form th:unless="${error}" method="post" th:action="@{/ai/plans/confirm}">
-        <input type="hidden" name="draftId" th:value="${draftId}">
-        <button>Xác nhận và lưu kế hoạch</button>
-    </form>
-    <a th:href="@{/ai/plans/new}">Tạo bản nháp mới</a>
+    <div class="ai-preview-actions">
+        <form th:if="${error == null}" method="post" th:action="@{/ai/plans/confirm}" data-ai-confirm>
+            <input type="hidden" name="draftId" th:value="${draftId}">
+            <button class="button--primary" type="submit">Lưu kế hoạch</button>
+        </form>
+        <a class="button" th:href="@{/ai/plans/new}">Tạo bản nháp mới</a>
+    </div>
 </main>
 </body>
 </html>

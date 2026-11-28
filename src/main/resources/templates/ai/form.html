@@ -3,18 +3,46 @@
       th:replace="~{fragments/layout :: page('Tạo kế hoạch bằng AI', 'ai', ~{::main})}">
 <head><meta charset="UTF-8"><title>Tạo kế hoạch bằng AI</title></head>
 <body>
-<main id="main-content" class="page-content" tabindex="-1">
-    <h1>Tạo kế hoạch bằng AI</h1>
-    <p th:if="${error}" th:text="${error}" role="alert"></p>
-    <p>Các nội dung bạn nhập sẽ được gửi đến dịch vụ AI đã cấu hình.</p>
-    <form method="post" th:action="@{/ai/plans/preview}">
-        <p><label>Mục tiêu <textarea name="goal" required maxlength="1000"></textarea></label></p>
-        <p><label>Trình độ <input name="level" required maxlength="120"></label></p>
-        <p><label>Thời hạn (ngày) <input name="durationDays" type="number" min="1" max="366" required></label></p>
-        <p><label>Ghi chú <textarea name="notes" maxlength="1500"></textarea></label></p>
-        <button>Xem bản nháp</button>
+<main id="main-content" class="page-content ai-page" tabindex="-1">
+    <a class="back-link" th:href="@{/plans}"><span aria-hidden="true">←</span> Kế hoạch</a>
+    <header class="planning-heading workspace-banner">
+        <div>
+            <h1>Tạo kế hoạch bằng AI</h1>
+            <p>Mô tả mục tiêu của bạn. AI sẽ gợi ý các giai đoạn, công việc và việc nhỏ để bạn xem lại trước khi lưu.</p>
+        </div>
+    </header>
+    <p th:if="${error != null}" th:text="${error}" role="alert"></p>
+    <form class="planning-panel planning-form ai-form" method="post" th:action="@{/ai/plans/preview}" data-ai-generate>
+        <div class="field">
+            <label for="ai-goal">Bạn muốn đạt được mục tiêu gì?</label>
+            <textarea id="ai-goal" name="goal" rows="3" required maxlength="1000"
+                      placeholder="Ví dụ: Xây dựng một ứng dụng Java quản lý chi tiêu cá nhân."
+                      th:text="${param.goal != null ? param.goal[0] : ''}"></textarea>
+        </div>
+        <div class="ai-field-pair">
+            <div class="field">
+                <label for="ai-level">Trình độ hiện tại</label>
+                <input id="ai-level" name="level" required maxlength="120" placeholder="Ví dụ: Đã biết Java cơ bản"
+                       th:value="${param.level != null ? param.level[0] : ''}">
+            </div>
+            <div class="field">
+                <label for="ai-duration">Thời gian thực hiện (ngày)</label>
+                <input id="ai-duration" name="durationDays" type="number" min="1" max="366" required
+                       placeholder="Từ 1 đến 366" th:value="${param.durationDays != null ? param.durationDays[0] : ''}">
+            </div>
+        </div>
+        <div class="field">
+            <label for="ai-notes">Ghi chú <span class="ai-optional">(tùy chọn)</span></label>
+            <textarea id="ai-notes" name="notes" rows="2" maxlength="1500"
+                      placeholder="Ví dụ: Mình có thể dành 45 phút mỗi tối và muốn ưu tiên thực hành."
+                      th:text="${param.notes != null ? param.notes[0] : ''}"></textarea>
+        </div>
+        <div class="ai-generate-actions">
+            <p class="field-help">Khi tạo bản nháp, nội dung bạn nhập sẽ được gửi đến dịch vụ AI.</p>
+            <button class="button--primary" type="submit">Tạo bản nháp</button>
+        </div>
+        <p role="status" hidden data-ai-pending>AI đang lập kế hoạch…</p>
     </form>
-    <a th:href="@{/plans}">Kế hoạch</a>
 </main>
 </body>
 </html>

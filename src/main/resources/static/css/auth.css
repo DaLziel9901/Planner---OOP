@@ -1,0 +1,124 @@
+.auth-page {
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    min-height: 100svh;
+    padding: clamp(1rem, 4vw, 3rem);
+    background: radial-gradient(ellipse at 50% 0%, #e3ebfc, transparent 70%), var(--background);
+}
+
+.auth-card {
+    width: min(100%, 29rem);
+    border: 1px solid var(--line);
+    border-radius: 1.125rem;
+    background: var(--surface);
+    box-shadow: 0 1rem 3.5rem rgb(29 55 108 / 8%);
+}
+
+.auth-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 1.25rem clamp(1.25rem, 5vw, 2.25rem);
+    border-radius: 1.125rem 1.125rem 0 0;
+    border-bottom: 1px solid var(--line);
+    background:
+        linear-gradient(105deg, #f4f7ff 35%, transparent 85%),
+        radial-gradient(#b7c7e8 1px, transparent 1.25px) 0 0 / 12px 12px,
+        #eaf0ff;
+    font-size: 1.25rem;
+    letter-spacing: -0.035em;
+    font-weight: 750;
+}
+
+.auth-content {
+    padding: clamp(1.25rem, 5vw, 2.25rem);
+}
+
+.auth-content h1 {
+    margin: 0;
+    font-size: clamp(1.75rem, 4vw, 2.125rem);
+    letter-spacing: -0.035em;
+    line-height: 1.2;
+}
+
+.auth-intro, .auth-switch {
+    color: var(--muted);
+    font-size: 0.9375rem;
+}
+
+.auth-intro {
+    margin: 0.5rem 0 1.5rem;
+}
+
+.auth-field {
+    display: grid;
+    gap: 0.375rem;
+}
+
+.auth-form {
+    display: grid;
+    gap: 1.125rem;
+}
+
+.auth-field label, .auth-switch a {
+    font-weight: 650;
+}
+
+.auth-field input {
+    width: 100%;
+    min-width: 0;
+    min-height: 2.875rem;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--control-line);
+    border-radius: 0.5rem;
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+}
+
+.auth-field input[aria-invalid="true"] {
+    border-color: var(--danger);
+}
+
+.auth-hint, .auth-error {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--muted);
+}
+
+.auth-error, .auth-alert {
+    color: var(--danger);
+}
+
+.auth-alert {
+    margin: 0 0 1.25rem;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid #e7b9bf;
+    border-radius: 0.5rem;
+    background: var(--danger-soft);
+    font-size: 0.9375rem;
+}
+
+.auth-submit {
+    min-height: 2.875rem;
+    margin-top: 0.25rem;
+    border: 0;
+    border-radius: 0.5rem;
+    background: var(--accent);
+    color: white;
+    font: inherit;
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.auth-submit:hover {
+    background: var(--accent-hover);
+}
+
+.auth-switch {
+    margin: 1.5rem 0 0;
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
+    text-align: center;
+}

@@ -11,10 +11,12 @@
           th:href="@{/css/tasks.css}">
     <link rel="stylesheet" th:if="${section == 'home' or section == 'plan-detail'}" th:href="@{/css/workspace-home.css}">
     <link rel="stylesheet" th:if="${section == 'home'}" th:href="@{/css/workspace-insights.css}">
+    <link rel="stylesheet" th:if="${section == 'ai'}" th:href="@{/css/ai-planner.css}">
     <script defer th:src="@{/js/navigation.js}"></script>
     <script defer th:src="@{/js/reminders.js}"></script>
     <script defer th:if="${section == 'home'}" th:src="@{/js/workspace-home.js}"></script>
     <script defer th:if="${section == 'home'}" th:src="@{/js/workspace-insights.js}"></script>
+    <script defer th:if="${section == 'ai'}" th:src="@{/js/ai-planner.js}"></script>
 </head>
 <body>
     <a class="skip-link" href="#main-content">Đến nội dung chính</a>
@@ -40,7 +42,7 @@
         </header>
         <aside class="app-sidebar" id="planner-sidebar">
             <a class="app-brand" th:href="@{/plans}">
-                <img class="brand-mark" th:src="@{/images/planner-logo.png}" alt="" width="38" height="38">
+                <img class="brand-mark" th:src="@{/css/images/planner-logo.png}" alt="" width="38" height="38">
                 <span>Planner</span>
             </a>
             <nav th:replace="~{fragments/navigation :: sidebar(${section})}"></nav>

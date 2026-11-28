@@ -26,6 +26,26 @@
     gap: 0.5rem;
 }
 
+.ai-entry {
+    color: #493989;
+    border-color: #c5b9ea;
+    background: #f5f1ff;
+}
+
+.ai-entry::before {
+    content: "";
+    width: 1rem;
+    height: 1rem;
+    flex: none;
+    background: currentColor;
+    clip-path: polygon(50% 0, 64% 36%, 100% 50%, 64% 64%, 50% 100%, 36% 64%, 0 50%, 36% 36%);
+}
+
+.ai-entry:hover {
+    color: #38286f;
+    background: #eae2ff;
+}
+
 .goal-workspace {
     display: grid;
     grid-template-columns: minmax(10.5rem, 12rem) minmax(0, 1fr);

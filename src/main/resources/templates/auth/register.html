@@ -1,19 +1,35 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><title>Đăng ký</title></head>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{auth/layout :: page('Đăng ký', ~{::main})}">
 <body>
-<main>
+<main class="auth-content">
     <h1>Đăng ký</h1>
-    <form method="post" th:action="@{/register}">
-        <p><label>Tên đăng nhập <input name="username" autocomplete="username" th:value="${form.username}"></label>
-            <span th:if="${errors['username'] != null}" th:text="${errors['username']}"></span></p>
-        <p><label>Mật khẩu <input type="password" name="password" autocomplete="new-password"></label>
-            <span th:if="${errors['password'] != null}" th:text="${errors['password']}"></span></p>
-        <p><label>Xác nhận mật khẩu <input type="password" name="confirmPassword" autocomplete="new-password"></label>
-            <span th:if="${errors['confirmPassword'] != null}" th:text="${errors['confirmPassword']}"></span></p>
-        <button>Đăng ký</button>
+    <p class="auth-intro">Sau khi tạo tài khoản, bạn sẽ đăng nhập để mở kế hoạch.</p>
+    <form class="auth-form" method="post" th:action="@{/register}">
+        <div class="auth-field" th:with="error=${errors['username']}">
+            <label for="username">Tên đăng nhập</label>
+            <input id="username" type="text" name="username" autocomplete="username" autocapitalize="none"
+                   spellcheck="false" required th:value="${form.username}"
+                   th:attr="aria-invalid=${error != null},aria-describedby=${error != null ? 'username-error' : 'username-hint'}">
+            <p class="auth-hint" id="username-hint" th:if="${error == null}">Dùng 3–32 ký tự gồm chữ cái a–z, số hoặc dấu gạch dưới (_).</p>
+            <p class="auth-error" id="username-error" th:if="${error != null}" th:text="${error}"></p>
+        </div>
+        <div class="auth-field" th:with="error=${errors['password']}">
+            <label for="password">Mật khẩu</label>
+            <input id="password" type="password" name="password" autocomplete="new-password" required
+                   th:attr="aria-invalid=${error != null},aria-describedby=${error != null ? 'password-error' : 'password-hint'}">
+            <p class="auth-hint" id="password-hint" th:if="${error == null}">Dùng 8–64 ký tự, tối đa 72 byte UTF-8.</p>
+            <p class="auth-error" id="password-error" th:if="${error != null}" th:text="${error}"></p>
+        </div>
+        <div class="auth-field" th:with="error=${errors['confirmPassword']}">
+            <label for="confirmPassword">Xác nhận mật khẩu</label>
+            <input id="confirmPassword" type="password" name="confirmPassword" autocomplete="new-password" required
+                   th:attr="aria-invalid=${error != null},aria-describedby=${error != null ? 'confirm-error' : null}">
+            <p class="auth-error" id="confirm-error" th:if="${error != null}" th:text="${error}"></p>
+        </div>
+        <button class="auth-submit" type="submit">Đăng ký</button>
     </form>
-    <a th:href="@{/login}">Đăng nhập</a>
+    <p class="auth-switch">Đã có tài khoản? <a th:href="@{/login}">Đăng nhập</a></p>
 </main>
 </body>
 </html>

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:fragment="page(title, content)">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="|${title} · Planner|">Planner</title>
+    <link rel="stylesheet" th:href="@{/css/planner.css}">
+    <link rel="stylesheet" th:href="@{/css/auth.css}">
+</head>
+<body class="auth-page">
+    <div class="auth-card">
+        <header class="auth-brand">
+            <img class="brand-mark" th:src="@{/css/images/planner-logo.png}" alt="" width="38" height="38">
+            <span>Planner</span>
+        </header>
+        <main th:replace="${content}"></main>
+    </div>
+</body>
+</html>
