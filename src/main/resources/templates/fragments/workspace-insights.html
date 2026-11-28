@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="panels(plans, progressAvailable, progressById)">
+    <section class="insights" data-workspace-panel="calendar" id="lich-muc-tieu" aria-labelledby="calendar-title">
+        <div class="insights-heading workspace-banner">
+            <div>
+                <h1 id="calendar-title">Lịch mục tiêu</h1>
+                <p>Chọn ngày để xem các việc nhỏ theo lịch dự kiến.</p>
+            </div>
+        </div>
+        <div class="empty-panel" th:unless="${progressAvailable}">
+            <h2>Chưa tải được lịch mục tiêu</h2>
+            <p>Tải lại trang để xem các việc thuộc mục tiêu.</p>
+        </div>
+        <div class="empty-panel" th:if="${progressAvailable and #lists.isEmpty(plans)}">
+            <h2>Chưa có mục tiêu</h2>
+            <p>Thêm việc nhỏ có ngày dự kiến để đưa chúng vào lịch.</p>
+            <a class="button button--primary" th:href="@{/plans/new}">Tạo mục tiêu</a>
+        </div>
+        <th:block th:if="${progressAvailable and !#lists.isEmpty(plans)}">
+            <noscript><p>Bật JavaScript để chọn ngày và lọc lịch.</p></noscript>
+            <div class="insights-calendar" data-calendar hidden>
+                <section class="insight-card" aria-labelledby="calendar-month">
+                    <div class="insight-card__header">
+                        <div class="calendar-filter-fields">
+                            <div>
+                                <label for="calendar-goal">Mục tiêu</label>
+                                <select id="calendar-goal" data-calendar-goal>
+                                    <option value="">Tất cả mục tiêu</option>
+                                    <option th:each="item : ${plans}" th:value="${item.id}" th:text="${item.title}"></option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="calendar-date">Chọn ngày</label>
+                                <input id="calendar-date" type="date" data-calendar-date>
+                            </div>
+                        </div>
+                        <div class="insights-actions" aria-label="Điều hướng tháng">
+                            <button type="button" data-calendar-shift="-1" aria-label="Tháng trước">‹</button>
+                            <button type="button" data-calendar-today>Hôm nay</button>
+                            <button type="button" data-calendar-shift="1" aria-label="Tháng sau">›</button>
+                        </div>
+                    </div>
+                    <h2 id="calendar-month" data-calendar-month aria-live="polite"></h2>
+                    <div class="calendar-grid">
+                        <div class="calendar-weekdays" aria-hidden="true">
+                            <span>T2</span><span>T3</span><span>T4</span><span>T5</span>
+                            <span>T6</span><span>T7</span><span>CN</span>
+                        </div>
+                        <div class="calendar-days" data-calendar-grid role="group" aria-label="Ngày trong tháng"></div>
+                    </div>
+                    <ul class="insight-legend" aria-label="Chú thích lịch">
+                        <li class="insight-legend__empty">Không có việc</li>
+                        <li class="insight-legend__partial">Có việc dự kiến</li>
+                        <li class="insight-legend__overdue">Đến hạn hoặc quá hạn</li>
+                        <li class="insight-legend__done">Hoàn thành hết</li>
+                    </ul>
+                </section>
+                <section class="insight-card" aria-labelledby="calendar-list-title">
+                    <div class="insight-card__header">
+                        <h2 id="calendar-list-title">Việc nhỏ trong lịch</h2>
+                        <label class="calendar-done-toggle">
+                            <input type="checkbox" data-calendar-done checked>
+                            Hiện việc đã xong
+                        </label>
+                    </div>
+                    <div class="insights-actions calendar-filters" role="group" aria-label="Phạm vi ngày">
+                        <button type="button" data-calendar-mode="day" aria-pressed="true">Ngày</button>
+                        <button type="button" data-calendar-mode="week" aria-pressed="false">Tuần</button>
+                        <button type="button" data-calendar-mode="unscheduled" aria-pressed="false">Chưa xếp lịch</button>
+                    </div>
+                    <p class="insight-caption" data-calendar-summary aria-live="polite"></p>
+                    <ul class="insight-list" data-calendar-items></ul>
+                    <p class="insight-empty" data-calendar-empty hidden>Chưa có việc nhỏ phù hợp.</p>
+                </section>
+            </div>
+        </th:block>
+    </section>
+
+    <section class="insights" data-workspace-panel="stats" id="thong-ke" aria-labelledby="stats-title">
+        <div class="insights-heading workspace-banner">
+            <div>
+                <h1 id="stats-title">Thống kê</h1>
+                <p>Theo dõi tiến độ từ các việc nhỏ trong từng kế hoạch.</p>
+            </div>
+        </div>
+        <div class="empty-panel" th:unless="${progressAvailable}">
+            <h2>Chưa tải được thống kê</h2>
+            <p>Tải lại trang để lấy tiến độ mới nhất.</p>
+        </div>
+        <div class="empty-panel" th:if="${progressAvailable and #lists.isEmpty(plans)}">
+            <h2>Chưa có mục tiêu</h2>
+            <p>Tiến độ sẽ xuất hiện khi bạn thêm việc nhỏ vào kế hoạch.</p>
+            <a class="button button--primary" th:href="@{/plans/new}">Tạo mục tiêu</a>
+        </div>
+        <th:block th:if="${progressAvailable and !#lists.isEmpty(plans)}">
+            <div class="insights-stats" data-stats>
+                <dl class="insight-metrics" data-stats-metrics hidden>
+                    <div><dt>Mục tiêu</dt><dd data-metric="plans"></dd></div>
+                    <div><dt>Việc nhỏ</dt><dd data-metric="total"></dd></div>
+                    <div><dt>Đã xong</dt><dd data-metric="completed"></dd></div>
+                    <div><dt>Chưa xong</dt><dd data-metric="pending"></dd></div>
+                </dl>
+                <section class="insight-card" aria-labelledby="stats-plans">
+                    <h2 id="stats-plans">Tiến độ theo mục tiêu</h2>
+                    <ul class="insight-list insight-plan-progress">
+                        <li th:each="item : ${plans}">
+                            <a class="item-title" th:href="@{/plans/{id}(id=${item.id})}" th:text="${item.title}"></a>
+                            <div th:replace="~{fragments/progress :: indicator(${progressById[item.id]})}"></div>
+                        </li>
+                    </ul>
+                </section>
+                <section class="insight-card" data-stats-weekly hidden aria-labelledby="stats-week-heading">
+                    <div class="insight-card__header">
+                        <div>
+                            <h2 id="stats-week-heading">Biểu đồ tuần</h2>
+                            <p class="insight-caption" data-stats-week aria-live="polite"></p>
+                        </div>
+                        <div class="insights-actions" aria-label="Điều hướng tuần">
+                            <button type="button" data-stats-shift="-1" aria-label="Tuần trước">‹</button>
+                            <button type="button" data-stats-today>Tuần này</button>
+                            <button type="button" data-stats-shift="1" aria-label="Tuần sau">›</button>
+                        </div>
+                    </div>
+                    <div class="stats-filters">
+                        <div>
+                            <label for="stats-date">Chọn ngày trong tuần</label>
+                            <input id="stats-date" type="date" data-stats-date>
+                        </div>
+                        <div>
+                            <label for="stats-goal">Mục tiêu</label>
+                            <select id="stats-goal" data-stats-goal>
+                                <option value="">Tất cả mục tiêu</option>
+                                <option th:each="item : ${plans}" th:value="${item.id}" th:text="${item.title}"></option>
+                            </select>
+                        </div>
+                    </div>
+                    <ul class="insight-legend" aria-label="Chú thích biểu đồ">
+                        <li class="insight-legend__done">Đã xong</li>
+                        <li class="insight-legend__pending">Chưa xong, chưa đến hạn</li>
+                        <li class="insight-legend__overdue">Đến hạn hoặc quá hạn</li>
+                    </ul>
+                    <ul class="weekly-chart" data-stats-chart aria-label="Số việc nhỏ mỗi ngày"></ul>
+                    <p class="insight-empty" data-stats-empty hidden>Tuần này chưa có việc nhỏ được xếp lịch.</p>
+                    <p class="insight-caption">Biểu đồ dùng ngày dự kiến và trạng thái hiện tại của từng việc.</p>
+                </section>
+            </div>
+        </th:block>
+    </section>
+</th:block>
+</body>
+</html>

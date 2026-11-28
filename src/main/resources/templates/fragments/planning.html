@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+    <th:block th:fragment="date(value)">
+        <time th:if="${value != null}" th:attr="datetime=${value}"
+              th:text="${#temporals.format(value, 'dd/MM/yyyy')}"></time>
+        <span th:unless="${value != null}" class="muted">Chưa đặt</span>
+    </th:block>
+    <div class="field" th:fragment="dateField(name, label, value, error)">
+        <label th:for="${name}" th:text="${label}"></label>
+        <input type="date" th:id="${name}" th:name="${name}" th:value="${value}"
+               th:attr="aria-invalid=${error == null ? null : 'true'},
+                        aria-describedby=${error == null ? 'date-help' : name + '-error date-help'}">
+        <p class="field-error" th:if="${error != null}" th:id="|${name}-error|">
+            <th:block th:replace="~{fragments/labels :: feedback(${error})}"></th:block>
+            <span th:if="${#strings.startsWith(error, 'Ngày không hợp lệ') and !#strings.isEmpty(value)}">
+                Giá trị đã gửi <code th:text="${value}"></code>
+            </span>
+        </p>
+    </div>
+    <ul class="form-errors" role="alert" th:fragment="errors(errors)" th:if="${!errors.isEmpty()}">
+        <li th:each="error : ${errors}"><th:block th:replace="~{fragments/labels :: feedback(${error.value})}"></th:block></li>
+    </ul>
+    <ul class="branch-list" th:fragment="branch(items, allNodes, progressById)">
+        <li class="branch-node" th:each="node : ${items}">
+            <div th:replace="~{fragments/planning :: row(${node}, ${progressById[node.id]}, false)}"></div>
+            <th:block th:with="descendants=${allNodes.?[parentSubPlanId == #root.node.id]}">
+                <details class="branch-children" open th:unless="${#lists.isEmpty(descendants)}">
+                    <summary>Nhánh con <span th:text="${#lists.size(descendants)}"></span></summary>
+                    <ul th:replace="~{fragments/planning :: branch(${descendants}, ${allNodes}, ${progressById})}"></ul>
+                </details>
+            </th:block>
+        </li>
+    </ul>
+    <div class="branch-row" th:fragment="row(item, progress, showParent)">
+        <div>
+            <a class="item-title" th:href="@{/subplans/{id}(id=${item.id})}" th:text="${item.title}"></a>
+            <p class="item-meta">
+                <span th:text="|#${item.id}|"></span>
+                <span th:if="${showParent}"
+                      th:text="${item.parentSubPlanId == null ? 'Trực tiếp dưới mục tiêu' : 'Cha #' + item.parentSubPlanId}"></span>
+                <span th:text="|Thứ tự ${item.orderIndex}|"></span>
+                <span class="item-dates" th:if="${item.startDate != null or item.endDate != null}">
+                    <span th:replace="~{fragments/planning :: date(${item.startDate})}"></span>
+                    <span aria-hidden="true">→</span>
+                    <span th:replace="~{fragments/planning :: date(${item.endDate})}"></span>
+                </span>
+            </p>
+        </div>
+        <div th:replace="~{fragments/progress :: indicator(${progress})}"></div>
+        <a class="button" th:href="@{/subplans/{id}/edit(id=${item.id})}"
+           th:attr="aria-label=|Sửa ${item.title}|">Sửa</a>
+    </div>
+</body>
+</html>

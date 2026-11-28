@@ -1,25 +1,46 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Chi tiết SubTask</title></head>
-<body><main>
-    <p th:if="${message}" th:text="${message}" role="status"></p>
-    <h1 th:text="${subTask.title}"></h1>
-    <p>Tiến độ Task: <span th:text="${progress.label}"></span></p>
-    <p>Task: <a th:href="@{/tasks/{id}(id=${task.id})}" th:text="${task.title}"></a></p>
-    <p th:text="${subTask.description}" style="white-space: pre-wrap"></p>
-    <dl><dt>Ngày dự kiến</dt><dd th:text="${subTask.scheduledDate}"></dd>
-        <dt>Thứ tự</dt><dd th:text="${subTask.orderIndex}"></dd>
-        <dt>Trạng thái</dt><dd th:text="${subTask.done ? 'Đã hoàn thành' : 'Chưa hoàn thành'}"></dd>
-        <dt>Thời điểm hoàn thành</dt><dd th:text="${subTask.completedAt}"></dd>
-        <dt>Thời điểm tạo</dt><dd th:text="${subTask.createdAt}"></dd></dl>
-    <form method="post" th:action="@{/subtasks/{id}/completion(id=${subTask.id})}">
-        <button type="submit" name="done" th:value="${!subTask.done}"
-                th:text="${subTask.done ? 'Bỏ đánh dấu hoàn thành' : 'Đánh dấu hoàn thành'}"></button>
-    </form>
-    <p><a th:href="@{/subtasks/{id}/edit(id=${subTask.id})}">Sửa SubTask</a>
-        | <a th:href="@{/subtasks(taskId=${task.id})}">Các SubTask cùng Task</a></p>
-    <form method="post" th:action="@{/subtasks/{id}/delete(id=${subTask.id})}"
-          onsubmit="return confirm('Xóa SubTask này?');">
-        <button type="submit">Xóa SubTask này</button>
-    </form>
-</main></body></html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: page('Chi tiết công việc con', 'tasks', ~{::main})}">
+<head><title>Planner</title></head>
+<body>
+<main id="main-content" class="page-content" tabindex="-1">
+    <nav class="planning-breadcrumb" aria-label="Đường dẫn công việc">
+        <a th:href="@{/tasks/{id}(id=${task.id})}" th:text="${task.title}"></a>
+        <a th:href="@{/subtasks(taskId=${task.id})}">Các việc nhỏ cùng nhóm</a>
+    </nav>
+    <div class="planning-heading">
+        <h1 th:text="${subTask.title}"></h1>
+        <a class="button" th:href="@{/subtasks/{id}/edit(id=${subTask.id})}">Sửa việc nhỏ</a>
+    </div>
+    <p th:replace="~{fragments/labels :: flash(${message})}"></p>
+    <div class="planning-grid">
+        <section class="planning-panel">
+            <div class="section-heading subtask-status">
+                <span th:replace="~{fragments/work-items :: status(${subTask.done})}"></span>
+                <form th:replace="~{fragments/work-items :: completion(${subTask}, ${null}, ${null}, true)}"></form>
+            </div>
+            <h2>Mô tả</h2>
+            <p class="preserve-lines" th:unless="${#strings.isEmpty(subTask.description)}" th:text="${subTask.description}"></p>
+            <p class="muted" th:if="${#strings.isEmpty(subTask.description)}">Chưa có mô tả.</p>
+            <dl class="metadata">
+                <div><dt>Ngày dự kiến</dt><dd><span th:replace="~{fragments/planning :: date(${subTask.scheduledDate})}"></span></dd></div>
+                <div><dt>Thứ tự</dt><dd th:text="${subTask.orderIndex}"></dd></div>
+                <div><dt>Thời điểm hoàn thành</dt><dd><span th:replace="~{fragments/work-items :: timestamp(${subTask.completedAt})}"></span></dd></div>
+                <div><dt>Thời điểm tạo</dt><dd><span th:replace="~{fragments/work-items :: timestamp(${subTask.createdAt})}"></span></dd></div>
+            </dl>
+        </section>
+        <section class="planning-panel">
+            <h2>Tiến độ công việc cha</h2>
+            <div th:replace="~{fragments/progress :: indicator(${progress})}"></div>
+        </section>
+    </div>
+    <section class="danger-panel">
+        <div><h2>Xóa việc nhỏ</h2></div>
+        <form class="delete-form" method="post" th:action="@{/subtasks/{id}/delete(id=${subTask.id})}"
+              onsubmit="return confirm('Xóa việc nhỏ này?');">
+            <button type="submit">Xóa việc nhỏ này</button>
+        </form>
+    </section>
+</main>
+</body>
+</html>

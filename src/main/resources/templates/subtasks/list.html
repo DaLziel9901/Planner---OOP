@@ -1,33 +1,53 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Danh sách SubTask</title></head>
-<body><main>
-    <p th:if="${message}" th:text="${message}" role="status"></p>
-    <h1>Danh sách SubTask</h1>
-    <ul role="alert" th:if="${!errors.isEmpty()}"><li th:each="error : ${errors}" th:text="${error.value}"></li></ul>
-    <p th:if="${task == null}"><a th:href="@{/tasks}">Chọn một Task từ danh sách</a></p>
-    <section th:if="${task != null}">
-        <p>Tiến độ Task: <span th:text="${progress.label}"></span></p>
-        <p>Task: <a th:href="@{/tasks/{id}(id=${task.id})}" th:text="${task.title}"></a></p>
-        <p><a th:href="@{/subtasks/new(taskId=${task.id})}">Thêm SubTask</a></p>
-        <p th:if="${treeAvailable and #lists.isEmpty(subTasks)}">Chưa có SubTask.</p>
-        <p th:unless="${treeAvailable}">Chưa tải đầy đủ danh sách SubTask.</p>
-        <table th:if="${treeAvailable and !#lists.isEmpty(subTasks)}">
-            <thead><tr><th>Tên</th><th>Ngày dự kiến</th><th>Thứ tự</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
-            <tbody><tr th:each="leaf : ${subTasks}">
-                <td><a th:href="@{/subtasks/{id}(id=${leaf.id})}" th:text="${leaf.title}"></a></td>
-                <td th:text="${leaf.scheduledDate}"></td><td th:text="${leaf.orderIndex}"></td>
-                <td th:text="${leaf.done ? 'Đã hoàn thành' : 'Chưa hoàn thành'}"></td>
-                <td>
-                    <a th:href="@{/subtasks/{id}/edit(id=${leaf.id})}">Sửa</a>
-                    <form method="post" th:action="@{/subtasks/{id}/completion(id=${leaf.id})}">
-                        <input type="hidden" name="source" value="subtasks">
-                        <input type="hidden" name="sourceId" th:value="${task.id}">
-                        <button type="submit" name="done" th:value="${!leaf.done}"
-                                th:text="${leaf.done ? 'Bỏ đánh dấu hoàn thành' : 'Đánh dấu hoàn thành'}"></button>
-                    </form>
-                </td>
-            </tr></tbody>
-        </table>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: page('Danh sách công việc con', 'tasks', ~{::main})}">
+<head><title>Planner</title></head>
+<body>
+<main id="main-content" class="page-content" tabindex="-1">
+    <div class="planning-heading">
+        <div>
+            <h1>Việc nhỏ</h1>
+            <p th:if="${task != null}">Công việc <a th:href="@{/tasks/{id}(id=${task.id})}" th:text="${task.title}"></a></p>
+        </div>
+        <a class="button button--primary" th:if="${task != null}" th:href="@{/subtasks/new(taskId=${task.id})}">
+            <span aria-hidden="true">+</span> Thêm việc nhỏ
+        </a>
+    </div>
+    <p th:replace="~{fragments/labels :: flash(${message})}"></p>
+    <ul th:replace="~{fragments/planning :: errors(${errors})}"></ul>
+    <section class="empty-panel" th:if="${task == null}">
+        <h2>Chọn một công việc để xem các việc nhỏ</h2>
+        <div class="planning-actions work-empty-actions">
+            <a class="button button--primary" th:href="@{/tasks}">Công việc độc lập</a>
+            <a class="button" th:href="@{/plans}">Kế hoạch</a>
+        </div>
     </section>
-</main></body></html>
+    <th:block th:if="${task != null}">
+        <section class="planning-panel work-section">
+            <h2>Tiến độ công việc cha</h2>
+            <div th:replace="~{fragments/progress :: indicator(${progress})}"></div>
+        </section>
+        <section class="planning-panel work-section">
+            <h2>Việc nhỏ</h2>
+            <p class="planning-state" th:if="${treeAvailable and #lists.isEmpty(subTasks)}">Chưa có việc nhỏ.</p>
+            <p class="planning-state" th:unless="${treeAvailable}">Chưa tải đầy đủ danh sách việc nhỏ.</p>
+            <div data-week-view th:if="${treeAvailable and !#lists.isEmpty(subTasks)}"
+                 th:attr="data-task-id=${task.id}">
+                <div class="week-filter" data-week-controls hidden>
+                    <div class="week-filter__field">
+                        <label for="week-anchor">Chọn ngày trong tuần</label>
+                        <input id="week-anchor" type="date">
+                    </div>
+                    <button type="button" data-week-today>Tuần này</button>
+                    <button type="button" data-week-reset>Tất cả</button>
+                    <p class="muted week-filter__summary" data-week-summary aria-live="polite"></p>
+                </div>
+                <ul th:replace="~{fragments/work-items :: subtaskList(${subTasks}, ${task.id}, 'subtasks')}"></ul>
+                <p class="planning-state" data-week-empty hidden>Không có việc nhỏ được xếp lịch trong tuần này.</p>
+                <script defer th:src="@{/js/subtask-week.js}"></script>
+            </div>
+        </section>
+    </th:block>
+</main>
+</body>
+</html>

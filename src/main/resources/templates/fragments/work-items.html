@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+    <span class="work-status" th:fragment="status(done)"
+          th:classappend="${done ? 'work-status--done' : ''}"
+          th:text="${done ? 'Đã hoàn thành' : 'Chưa hoàn thành'}"></span>
+
+    <form class="completion-form" method="post" th:action="@{/subtasks/{id}/completion(id=${leaf.id})}"
+          th:fragment="completion(leaf, source, sourceId, primary)"
+          th:with="label=${leaf.done ? 'Bỏ đánh dấu hoàn thành' : 'Đánh dấu hoàn thành'}">
+        <input th:if="${source != null}" type="hidden" name="source" th:value="${source}">
+        <input th:if="${sourceId != null}" type="hidden" name="sourceId" th:value="${sourceId}">
+        <button type="submit" name="done" th:value="${!leaf.done}"
+                th:classappend="${primary and !leaf.done ? 'button--primary' : ''}"
+                th:attr="aria-label=|${label}: ${leaf.title}|"
+                th:text="${label}"></button>
+    </form>
+
+    <ul class="work-list" th:fragment="subtaskList(leaves, taskId, source)">
+        <li class="work-row" th:each="leaf : ${leaves}" th:attr="data-scheduled-date=${leaf.scheduledDate}">
+            <div class="work-row__summary">
+                <a class="item-title" th:href="@{/subtasks/{id}(id=${leaf.id})}" th:text="${leaf.title}"></a>
+                <p class="item-meta">
+                    <span class="item-dates">Dự kiến <span th:replace="~{fragments/planning :: date(${leaf.scheduledDate})}"></span></span>
+                    <span th:text="|Thứ tự ${leaf.orderIndex}|"></span>
+                </p>
+            </div>
+            <span th:replace="~{fragments/work-items :: status(${leaf.done})}"></span>
+            <div class="work-row__actions">
+                <form th:replace="~{fragments/work-items :: completion(${leaf}, ${source}, ${taskId}, false)}"></form>
+                <a class="button" th:href="@{/subtasks/{id}/edit(id=${leaf.id})}"
+                   th:attr="aria-label=|Sửa ${leaf.title}|">Sửa</a>
+            </div>
+        </li>
+    </ul>
+
+    <th:block th:fragment="timestamp(value)">
+        <time th:if="${value != null}" th:attr="datetime=${value}"
+              th:text="${#temporals.format(value, 'dd/MM/yyyy HH:mm')}"></time>
+        <span th:unless="${value != null}" class="muted">Chưa có</span>
+    </th:block>
+
+    <div class="field field--number" th:fragment="orderField(value, error)">
+        <label for="orderIndex">Thứ tự</label>
+        <input id="orderIndex" name="orderIndex" th:value="${value}" inputmode="numeric"
+               th:attr="aria-invalid=${error == null ? null : 'true'},
+                        aria-describedby=${error == null ? 'order-help' : 'order-error order-help'}">
+        <p class="field-help" id="order-help">Để trống dùng 0.</p>
+        <p class="field-error" id="order-error" th:if="${error != null}"><th:block th:replace="~{fragments/labels :: feedback(${error})}"></th:block></p>
+    </div>
+</body>
+</html>

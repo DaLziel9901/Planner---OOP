@@ -1,30 +1,76 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Chi tiết SubPlan</title></head>
-<body><main>
-    <p th:if="${message}" th:text="${message}" role="status"></p>
-    <h1 th:text="${subPlan.title}"></h1>
-    <p>Plan: <a th:href="@{/plans/{id}(id=${plan.id})}" th:text="${plan.title}"></a></p>
-    <p th:if="${subPlan.parentSubPlanId != null}">SubPlan cha:
-        <a th:href="@{/subplans/{id}(id=${subPlan.parentSubPlanId})}" th:text="${'#' + subPlan.parentSubPlanId}"></a></p>
-    <p th:text="${subPlan.description}" style="white-space: pre-wrap"></p>
-    <dl><dt>Ngày bắt đầu</dt><dd th:text="${subPlan.startDate}"></dd>
-        <dt>Ngày kết thúc</dt><dd th:text="${subPlan.endDate}"></dd>
-        <dt>Thứ tự</dt><dd th:text="${subPlan.orderIndex}"></dd>
-        <dt>Thời điểm tạo</dt><dd th:text="${subPlan.createdAt}"></dd></dl>
-    <ul th:if="${!#lists.isEmpty(warnings)}" role="status"><li th:each="warning : ${warnings}" th:text="${warning}"></li></ul>
-    <p th:text="${progress.label}"></p>
-    <h2>SubPlan con trực tiếp</h2>
-    <p th:if="${treeAvailable and #lists.isEmpty(children)}">Chưa có SubPlan con trực tiếp.</p>
-    <p th:unless="${treeAvailable}">Chưa tải đầy đủ nhánh SubPlan.</p>
-    <ul><li th:each="child : ${children}"><a th:href="@{/subplans/{id}(id=${child.id})}" th:text="${child.title}"></a></li></ul>
-    <p><a th:href="@{/subplans/new(planId=${plan.id},parentSubPlanId=${subPlan.id})}">Thêm SubPlan con</a>
-        | <a th:href="@{/subplans/{id}/edit(id=${subPlan.id})}">Sửa</a>
-        | <a th:href="${taskListUrl}">Task trực tiếp</a>
-        | <a th:href="${newTaskUrl}">Thêm Task trực tiếp</a>
-        | <a th:href="@{/subplans(planId=${plan.id})}">Về danh sách</a></p>
-    <form method="post" th:action="@{/subplans/{id}/delete(id=${subPlan.id})}"
-          onsubmit="return confirm('Xóa SubPlan này và toàn bộ SubPlan, Task, SubTask bên dưới?');">
-        <button type="submit">Xóa toàn bộ nhánh này</button>
-    </form>
-</main></body></html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: page('Chi tiết giai đoạn', 'subplans', ~{::main})}">
+<head><title>Planner</title></head>
+<body>
+<main id="main-content" class="page-content" tabindex="-1">
+    <nav class="planning-breadcrumb" aria-label="Đường dẫn kế hoạch">
+        <a th:href="@{/plans} + |#muc-tieu-${plan.id}|" th:text="${plan.title}"></a>
+        <a th:href="@{/subplans(planId=${plan.id})}">Danh sách giai đoạn</a>
+        <a th:if="${subPlan.parentSubPlanId != null}"
+           th:href="@{/subplans/{id}(id=${subPlan.parentSubPlanId})}"
+           th:text="|Giai đoạn cha #${subPlan.parentSubPlanId}|"></a>
+    </nav>
+    <div class="planning-heading">
+        <div>
+            <p class="item-meta" th:text="|Giai đoạn #${subPlan.id}|"></p>
+            <h1 th:text="${subPlan.title}"></h1>
+        </div>
+        <a class="button" th:href="@{/subplans/{id}/edit(id=${subPlan.id})}">Sửa giai đoạn</a>
+    </div>
+    <p th:replace="~{fragments/labels :: flash(${message})}"></p>
+    <aside class="warning-panel" th:unless="${#lists.isEmpty(warnings)}">
+        <h2>Cảnh báo ngày</h2>
+        <ul><li th:each="warning : ${warnings}"><th:block th:replace="~{fragments/labels :: feedback(${warning})}"></th:block></li></ul>
+    </aside>
+    <div class="planning-grid">
+        <section class="planning-panel">
+            <h2>Tổng quan</h2>
+            <div th:replace="~{fragments/progress :: indicator(${progress})}"></div>
+            <h3>Mô tả</h3>
+            <p class="preserve-lines" th:unless="${#strings.isEmpty(subPlan.description)}" th:text="${subPlan.description}"></p>
+            <p class="muted" th:if="${#strings.isEmpty(subPlan.description)}">Chưa có mô tả.</p>
+            <dl class="metadata">
+                <div><dt>Ngày bắt đầu</dt><dd><span th:replace="~{fragments/planning :: date(${subPlan.startDate})}"></span></dd></div>
+                <div><dt>Ngày kết thúc</dt><dd><span th:replace="~{fragments/planning :: date(${subPlan.endDate})}"></span></dd></div>
+                <div><dt>Thứ tự</dt><dd th:text="${subPlan.orderIndex}"></dd></div>
+                <div><dt>Thời điểm tạo</dt><dd><time th:attr="datetime=${subPlan.createdAt}"
+                    th:text="${#temporals.format(subPlan.createdAt, 'dd/MM/yyyy HH:mm')}"></time></dd></div>
+            </dl>
+        </section>
+        <div class="planning-stack">
+            <section class="planning-panel">
+                <h2>Giai đoạn con</h2>
+                <p class="planning-state" th:if="${treeAvailable and #lists.isEmpty(children)}">Chưa có giai đoạn con.</p>
+                <p class="planning-state" th:unless="${treeAvailable}">Chưa tải đầy đủ các giai đoạn con.</p>
+                <ul class="direct-children" th:if="${treeAvailable and !#lists.isEmpty(children)}">
+                    <li th:each="child : ${children}">
+                        <a th:href="@{/subplans/{id}(id=${child.id})}" th:text="${child.title}"></a>
+                    </li>
+                </ul>
+                <a class="button button--primary" th:href="@{/subplans/new(planId=${plan.id},parentSubPlanId=${subPlan.id})}">
+                    Thêm giai đoạn con
+                </a>
+            </section>
+            <section class="planning-panel">
+                <h2>Công việc trực tiếp</h2>
+                <div class="planning-actions">
+                    <a class="button" th:href="${taskListUrl}">Xem công việc</a>
+                    <a class="button" th:href="${newTaskUrl}">Thêm công việc</a>
+                </div>
+            </section>
+        </div>
+    </div>
+    <section class="danger-panel">
+        <div>
+            <h2>Xóa nhánh</h2>
+            <p>Giai đoạn này cùng tất cả các giai đoạn, công việc và việc nhỏ bên dưới sẽ bị xóa.</p>
+        </div>
+        <form method="post" th:action="@{/subplans/{id}/delete(id=${subPlan.id})}" class="delete-form"
+              onsubmit="return confirm('Xóa giai đoạn này và toàn bộ các mục bên dưới?');">
+            <button type="submit">Xóa toàn bộ nhánh này</button>
+        </form>
+    </section>
+</main>
+</body>
+</html>

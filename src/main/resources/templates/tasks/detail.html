@@ -1,41 +1,64 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Chi tiết Task</title></head>
-<body><main>
-    <p th:if="${message}" th:text="${message}" role="status"></p>
-    <h1 th:text="${task.title}"></h1>
-    <p th:text="${locationLabel}"></p>
-    <p th:if="${parentUrl != null}"><a th:href="${parentUrl}">Về cha</a></p>
-    <p th:text="${task.description}" style="white-space: pre-wrap"></p>
-    <dl><dt>Ngày bắt đầu</dt><dd th:text="${task.startDate}"></dd>
-        <dt>Ngày kết thúc</dt><dd th:text="${task.endDate}"></dd>
-        <dt>Thứ tự</dt><dd th:text="${task.orderIndex}"></dd>
-        <dt>Thời điểm tạo</dt><dd th:text="${task.createdAt}"></dd></dl>
-    <p th:text="${progress.label}"></p>
-    <h2>SubTask</h2>
-    <p><a th:href="@{/subtasks/new(taskId=${task.id})}">Thêm SubTask</a>
-        | <a th:href="@{/subtasks(taskId=${task.id})}">Xem các SubTask</a></p>
-    <p th:if="${treeAvailable and #lists.isEmpty(subTasks)}">Chưa có SubTask.</p>
-    <p th:unless="${treeAvailable}">Chưa tải đầy đủ danh sách SubTask.</p>
-    <table th:if="${treeAvailable and !#lists.isEmpty(subTasks)}">
-        <thead><tr><th>Tên</th><th>Ngày dự kiến</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
-        <tbody><tr th:each="leaf : ${subTasks}">
-            <td><a th:href="@{/subtasks/{id}(id=${leaf.id})}" th:text="${leaf.title}"></a></td>
-            <td th:text="${leaf.scheduledDate}"></td><td th:text="${leaf.done ? 'Đã hoàn thành' : 'Chưa hoàn thành'}"></td>
-            <td>
-                <a th:href="@{/subtasks/{id}/edit(id=${leaf.id})}">Sửa</a>
-                <form method="post" th:action="@{/subtasks/{id}/completion(id=${leaf.id})}">
-                    <input type="hidden" name="source" value="task">
-                    <input type="hidden" name="sourceId" th:value="${task.id}">
-                    <button type="submit" name="done" th:value="${!leaf.done}"
-                            th:text="${leaf.done ? 'Bỏ đánh dấu hoàn thành' : 'Đánh dấu hoàn thành'}"></button>
-                </form>
-            </td>
-        </tr></tbody>
-    </table>
-    <p><a th:href="@{/tasks/{id}/edit(id=${task.id})}">Sửa Task</a> | <a th:href="${taskListUrl}">Về danh sách</a></p>
-    <form method="post" th:action="@{/tasks/{id}/delete(id=${task.id})}"
-          onsubmit="return confirm('Xóa Task này và toàn bộ SubTask bên dưới?');">
-        <button type="submit">Xóa Task và toàn bộ SubTask</button>
-    </form>
-</main></body></html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: page('Chi tiết công việc', 'tasks', ~{::main})}">
+<head><title>Planner</title></head>
+<body>
+<main id="main-content" class="page-content" tabindex="-1">
+    <nav class="planning-breadcrumb" aria-label="Đường dẫn công việc">
+        <a th:if="${parentUrl != null}" th:href="${parentUrl}">Về mục cha</a>
+        <a th:href="${taskListUrl}">Danh sách công việc</a>
+    </nav>
+    <div class="planning-heading">
+        <div>
+            <p class="item-meta"><th:block th:replace="~{fragments/labels :: location(${locationLabel})}"></th:block></p>
+            <h1 th:text="${task.title}"></h1>
+        </div>
+        <a class="button" th:href="@{/tasks/{id}/edit(id=${task.id})}">Sửa công việc</a>
+    </div>
+    <p th:replace="~{fragments/labels :: flash(${message})}"></p>
+    <section class="planning-panel work-overview">
+        <div>
+            <h2>Tổng quan</h2>
+            <p class="preserve-lines" th:unless="${#strings.isEmpty(task.description)}" th:text="${task.description}"></p>
+            <p class="muted" th:if="${#strings.isEmpty(task.description)}">Chưa có mô tả.</p>
+            <dl class="metadata">
+                <div><dt>Ngày bắt đầu</dt><dd><span th:replace="~{fragments/planning :: date(${task.startDate})}"></span></dd></div>
+                <div><dt>Ngày kết thúc</dt><dd><span th:replace="~{fragments/planning :: date(${task.endDate})}"></span></dd></div>
+                <div><dt>Thứ tự</dt><dd th:text="${task.orderIndex}"></dd></div>
+                <div><dt>Thời điểm tạo</dt><dd><span th:replace="~{fragments/work-items :: timestamp(${task.createdAt})}"></span></dd></div>
+            </dl>
+        </div>
+        <div class="work-progress-panel">
+            <h2>Tiến độ công việc</h2>
+            <div th:replace="~{fragments/progress :: indicator(${progress})}"></div>
+        </div>
+    </section>
+    <section class="planning-panel work-section">
+        <div class="section-heading">
+            <h2>Việc nhỏ</h2>
+            <div class="planning-actions">
+                <a class="button" th:href="@{/subtasks(taskId=${task.id})}">Danh sách và lịch tuần</a>
+                <a class="button button--primary" th:href="@{/subtasks/new(taskId=${task.id})}">
+                    <span aria-hidden="true">+</span> Thêm việc nhỏ
+                </a>
+            </div>
+        </div>
+        <p class="planning-state" th:if="${treeAvailable and #lists.isEmpty(subTasks)}">Chưa có việc nhỏ.</p>
+        <p class="planning-state" th:unless="${treeAvailable}">Chưa tải đầy đủ danh sách việc nhỏ.</p>
+        <th:block th:if="${treeAvailable and !#lists.isEmpty(subTasks)}">
+            <ul th:replace="~{fragments/work-items :: subtaskList(${subTasks}, ${task.id}, 'task')}"></ul>
+        </th:block>
+    </section>
+    <section class="danger-panel">
+        <div>
+            <h2>Xóa công việc</h2>
+            <p>Toàn bộ việc nhỏ bên dưới cũng sẽ bị xóa.</p>
+        </div>
+        <form class="delete-form" method="post" th:action="@{/tasks/{id}/delete(id=${task.id})}"
+              onsubmit="return confirm('Xóa công việc này và toàn bộ việc nhỏ bên dưới?');">
+            <button type="submit">Xóa công việc</button>
+        </form>
+    </section>
+</main>
+</body>
+</html>

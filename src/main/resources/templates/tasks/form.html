@@ -1,42 +1,77 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Form Task</title></head>
-<body><main>
-    <h1 th:text="${editing ? 'Sửa Task' : 'Thêm Task'}"></h1>
-    <ul role="alert" th:if="${!errors.isEmpty()}"><li th:each="error : ${errors}" th:text="${error.value}"></li></ul>
-    <form method="post" th:action="${formAction}">
-        <fieldset th:unless="${editing}"><legend>Nơi chứa Task</legend>
-            <p>Chọn một Plan hoặc một SubPlan. Để trống cả hai để tạo Task độc lập.</p>
-            <p><label for="planId">Plan trực tiếp</label>
-                <select id="planId" name="planId">
-                    <option value="">Không chọn Plan</option>
-                    <option th:unless="${planSelectionKnown}" th:value="${locationForm['planId']}" selected th:text="${'Giá trị đã gửi: ' + locationForm['planId']}"></option>
-                    <option th:each="plan : ${plans}" th:value="${plan.id}" th:selected="${plan.id.toString() == locationForm['planId']}" th:text="${'#' + plan.id + ' — ' + plan.title}"></option>
-                </select></p>
-            <p><label for="subPlanId">SubPlan trực tiếp</label>
-                <select id="subPlanId" name="subPlanId">
-                    <option value="">Không chọn SubPlan</option>
-                    <option th:unless="${subPlanSelectionKnown}" th:value="${locationForm['subPlanId']}" selected th:text="${'Giá trị đã gửi: ' + locationForm['subPlanId']}"></option>
-                    <option th:each="sub : ${subPlans}" th:value="${sub.id}" th:selected="${sub.id.toString() == locationForm['subPlanId']}" th:text="${'#' + sub.id + ' — ' + sub.title + ' (Plan #' + sub.planId + ')'}"></option>
-                </select></p>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: page(${editing ? 'Sửa công việc' : 'Thêm công việc'}, 'tasks', ~{::main})}">
+<head><title>Planner</title></head>
+<body>
+<main id="main-content" class="page-content page-content--form" tabindex="-1">
+    <a class="back-link" th:href="${taskListUrl != null ? taskListUrl : '/tasks'}">
+        <span aria-hidden="true">←</span> Danh sách công việc
+    </a>
+    <div class="planning-heading">
+        <div>
+            <h1 th:text="${editing ? 'Sửa công việc' : 'Thêm công việc'}"></h1>
+            <p th:if="${editing and locationLabel != null}"><th:block th:replace="~{fragments/labels :: location(${locationLabel})}"></th:block></p>
+        </div>
+    </div>
+    <ul th:replace="~{fragments/planning :: errors(${errors})}"></ul>
+    <form class="planning-form" method="post" th:action="${formAction}">
+        <div class="field">
+            <label for="title">Tên công việc <span aria-hidden="true">*</span></label>
+            <input id="title" name="title" th:value="${form['title']}" required
+                   th:attr="aria-invalid=${errors['title'] == null ? null : 'true'},
+                            aria-describedby=${errors['title'] == null ? 'title-help' : 'title-error title-help'}">
+            <p class="field-help" id="title-help">Tối đa 255 ký tự. Tên có thể trùng.</p>
+            <p class="field-error" id="title-error" th:if="${errors['title'] != null}"><th:block th:replace="~{fragments/labels :: feedback(${errors['title']})}"></th:block></p>
+        </div>
+        <div class="field">
+            <label for="description">Mô tả</label>
+            <textarea id="description" name="description" rows="4" th:text="${form['description']}"></textarea>
+        </div>
+        <fieldset class="location-fields" th:unless="${editing}"
+                  th:attr="aria-describedby=${errors['location'] == null ? 'location-help' : 'location-error location-help'}">
+            <legend>Thuộc mục nào?</legend>
+            <p class="field-help" id="location-help">Chọn một mục tiêu hoặc một giai đoạn. Để trống cả hai cho công việc độc lập.</p>
+            <p class="field-error" id="location-error" th:if="${errors['location'] != null}"><th:block th:replace="~{fragments/labels :: feedback(${errors['location']})}"></th:block></p>
+            <div class="date-fields">
+                <div class="field">
+                    <label for="planId">Mục tiêu</label>
+                    <select id="planId" name="planId"
+                            th:attr="aria-invalid=${errors['planId'] != null or errors['location'] != null ? 'true' : null},
+                                     aria-describedby=${errors['planId'] == null ? null : 'plan-id-error'}">
+                        <option value="">Không chọn mục tiêu</option>
+                        <option th:unless="${planSelectionKnown}" th:value="${locationForm['planId']}" selected
+                                th:text="${'Giá trị đã gửi: ' + locationForm['planId']}"></option>
+                        <option th:each="plan : ${plans}" th:value="${plan.id}" th:selected="${plan.id.toString() == locationForm['planId']}"
+                                th:text="|#${plan.id} · ${plan.title}|"></option>
+                    </select>
+                    <p class="field-error" id="plan-id-error" th:if="${errors['planId'] != null}"><th:block th:replace="~{fragments/labels :: feedback(${errors['planId']})}"></th:block></p>
+                </div>
+                <div class="field">
+                    <label for="subPlanId">Giai đoạn</label>
+                    <select id="subPlanId" name="subPlanId"
+                            th:attr="aria-invalid=${errors['subPlanId'] != null or errors['location'] != null ? 'true' : null},
+                                     aria-describedby=${errors['subPlanId'] == null ? null : 'subplan-id-error'}">
+                        <option value="">Không chọn giai đoạn</option>
+                        <option th:unless="${subPlanSelectionKnown}" th:value="${locationForm['subPlanId']}" selected
+                                th:text="${'Giá trị đã gửi: ' + locationForm['subPlanId']}"></option>
+                        <option th:each="sub : ${subPlans}" th:value="${sub.id}" th:selected="${sub.id.toString() == locationForm['subPlanId']}"
+                                th:text="|#${sub.id} · ${sub.title} (Mục tiêu #${sub.planId})|"></option>
+                    </select>
+                    <p class="field-error" id="subplan-id-error" th:if="${errors['subPlanId'] != null}"><th:block th:replace="~{fragments/labels :: feedback(${errors['subPlanId']})}"></th:block></p>
+                </div>
+            </div>
         </fieldset>
-        <p th:if="${editing}" th:text="${locationLabel}"></p>
-        <p><label for="title">Tên Task *</label><br>
-            <input id="title" name="title" th:value="${form['title']}" required aria-describedby="title-help title-error">
-            <small id="title-help">Từ 1 đến 255 ký tự, không chỉ chứa khoảng trắng. Task được phép trùng tên.</small>
-            <span id="title-error" th:text="${errors['title']}"></span></p>
-        <p><label for="description">Mô tả</label><br>
-            <textarea id="description" name="description" rows="4" th:text="${form['description']}"></textarea></p>
-        <p><label for="startDate">Ngày bắt đầu (yyyy-MM-dd)</label><br>
-            <input id="startDate" name="startDate" th:value="${form['startDate']}" placeholder="2026-11-16" aria-describedby="start-error">
-            <span id="start-error" th:text="${errors['startDate']}"></span></p>
-        <p><label for="endDate">Ngày kết thúc (yyyy-MM-dd)</label><br>
-            <input id="endDate" name="endDate" th:value="${form['endDate']}" placeholder="2026-12-16" aria-describedby="end-error">
-            <span id="end-error" th:text="${errors['endDate']}"></span></p>
-        <p><label for="orderIndex">Thứ tự</label><br>
-            <input id="orderIndex" name="orderIndex" th:value="${form['orderIndex']}" inputmode="numeric" aria-describedby="order-error">
-            <span id="order-error" th:text="${errors['orderIndex']}"></span></p>
-        <p>Mô tả và ngày có thể để trống. Nếu nhập cả hai ngày, ngày bắt đầu không được sau ngày kết thúc. Thứ tự là số nguyên không âm, để trống dùng 0.</p>
-        <button type="submit">Lưu Task</button> <a th:href="${taskListUrl != null ? taskListUrl : '/tasks'}">Về danh sách</a>
+        <div class="date-fields">
+            <div th:replace="~{fragments/planning :: dateField('startDate', 'Ngày bắt đầu', ${form['startDate']}, ${errors['startDate']})}"></div>
+            <div th:replace="~{fragments/planning :: dateField('endDate', 'Ngày kết thúc', ${form['endDate']}, ${errors['endDate']})}"></div>
+        </div>
+        <p class="field-help" id="date-help">Ngày có thể để trống. Nếu nhập cả hai mốc, ngày kết thúc phải bằng hoặc sau ngày bắt đầu.</p>
+        <div th:replace="~{fragments/work-items :: orderField(${form['orderIndex']}, ${errors['orderIndex']})}"></div>
+        <div class="form-actions">
+            <button type="submit">Lưu công việc</button>
+            <a class="button" th:href="${taskListUrl != null ? taskListUrl : '/tasks'}">Hủy</a>
+        </div>
     </form>
-</main></body></html>
+</main>
+</body>
+</html>

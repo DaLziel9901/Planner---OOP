@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+    <nav class="sidebar-nav" aria-label="Điều hướng chính" th:fragment="sidebar(section)">
+        <a class="sidebar-link" th:href="@{/plans}" data-workspace-nav="plans"
+           th:attr="aria-current=${section == 'home' ? 'page' : 'location'}">
+            <span class="nav-icon nav-icon--plans" aria-hidden="true"></span>
+            Kế hoạch
+        </a>
+        <a class="sidebar-link" th:href="@{/plans#lich-muc-tieu}" data-workspace-nav="calendar">
+            <span class="nav-icon nav-icon--calendar" aria-hidden="true"></span>
+            Lịch mục tiêu
+        </a>
+        <a class="sidebar-link" th:href="@{/plans#thong-ke}" data-workspace-nav="stats">
+            <span class="nav-icon nav-icon--stats" aria-hidden="true"></span>
+            Thống kê
+        </a>
+    </nav>
+</body>
+</html>

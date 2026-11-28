@@ -1,27 +1,55 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Danh sách kế hoạch</title></head>
-<body><main>
-    <h1>Danh sách kế hoạch</h1>
-    <p th:if="${currentUser}" th:text="${currentUser.username}"></p>
-    <form th:if="${currentUser}" method="post" th:action="@{/logout}">
-        <button>Đăng xuất</button>
-    </form>
-    <p th:if="${message}" th:text="${message}" role="status"></p>
-    <p><a th:href="@{/plans/new}">Thêm Plan</a> | <a th:href="@{/subplans}">Quản lý SubPlan</a> | <a th:href="@{/tasks}">Task độc lập</a> | <a th:href="@{/ai/plans/new}">Tạo kế hoạch bằng AI</a></p>
-    <p th:if="${#lists.isEmpty(plans)}">Chưa có kế hoạch. Chọn Thêm Plan để bắt đầu.</p>
-    <table th:unless="${#lists.isEmpty(plans)}">
-        <thead><tr><th>ID</th><th>Tên</th><th>Mục tiêu</th><th>Ngày bắt đầu</th><th>Ngày kết thúc</th><th>Tiến độ</th><th>Thao tác</th></tr></thead>
-        <tbody><tr th:each="plan : ${plans}">
-            <td th:text="${plan.id}"></td>
-            <td><a th:href="@{/plans/{id}(id=${plan.id})}" th:text="${plan.title}"></a></td>
-            <td th:text="${plan.goal}"></td>
-            <td th:text="${plan.startDate}"></td><td th:text="${plan.endDate}"></td>
-            <td th:text="${progressById[plan.id].label}"></td>
-            <td><a th:href="@{/plans/{id}/edit(id=${plan.id})}">Sửa</a>
-                | <a th:href="@{/subplans(planId=${plan.id})}">Các SubPlan</a>
-                | <a th:href="@{/tasks(planId=${plan.id})}">Task trực tiếp</a></td>
-        </tr></tbody>
-    </table>
-    <p th:unless="${progressAvailable}">Chưa có tiến độ khả dụng.</p>
-</main></body></html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: page('Kế hoạch', 'home', ~{::main})}">
+<head><title>Planner</title></head>
+<body>
+<main id="main-content" class="page-content planner-home" tabindex="-1" data-workspace
+      th:attr="data-progress-available=${progressAvailable}">
+    <section id="ke-hoach" data-workspace-panel="plans">
+        <div class="home-heading workspace-banner">
+            <h1>Kế hoạch</h1>
+            <div class="home-heading__actions">
+                <span class="item-meta" th:if="${currentUser}" th:text="${currentUser.username}"></span>
+                <form th:if="${currentUser}" method="post" th:action="@{/logout}">
+                    <button class="button" type="submit">Đăng xuất</button>
+                </form>
+                <a class="button" th:href="@{/ai/plans/new}">Tạo kế hoạch bằng AI</a>
+                <a class="button" th:href="@{/tasks}">Công việc độc lập</a>
+                <a class="button button--primary" th:href="@{/plans/new}">+ Thêm mục tiêu</a>
+            </div>
+        </div>
+        <p th:replace="~{fragments/labels :: flash(${message})}"></p>
+        <section class="home-state" th:if="${#lists.isEmpty(plans)}">
+            <h2>Chưa có kế hoạch</h2>
+            <p>Tạo một mục tiêu để sắp xếp các giai đoạn và công việc của bạn.</p>
+            <a class="button button--primary" th:href="@{/plans/new}">Tạo mục tiêu đầu tiên</a>
+        </section>
+        <div class="goal-workspace" th:unless="${#lists.isEmpty(plans)}">
+            <nav class="goal-picker" aria-label="Danh sách mục tiêu">
+                <div class="goal-picker__header">
+                    <h2>Mục tiêu</h2>
+                    <span class="item-meta" th:text="${#lists.size(plans)}"></span>
+                </div>
+                <ul class="goal-picker__list">
+                    <li th:each="plan : ${plans}">
+                        <a class="goal-link" data-workspace-goal th:href="|#muc-tieu-${plan.id}|"
+                           th:attr="data-plan-id=${plan.id},data-title=${plan.title}">
+                            <span class="goal-link__title" th:text="${plan.title}"></span>
+                            <span th:if="${progressById[plan.id].percentage != null}" class="goal-link__percent"
+                                  th:text="${progressById[plan.id].percentage}"></span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            <div class="goal-stage">
+                <th:block th:each="plan : ${plans}">
+                    <article th:replace="~{fragments/workspace-goals :: goalPanel(${plan}, ${progressById[plan.id]}, ${progressAvailable}, false)}"></article>
+                </th:block>
+            </div>
+        </div>
+        <p class="planning-state" th:unless="${progressAvailable}">Chưa có tiến độ khả dụng.</p>
+    </section>
+    <th:block th:replace="~{fragments/workspace-insights :: panels(${plans}, ${progressAvailable}, ${progressById})}"></th:block>
+</main>
+</body>
+</html>
