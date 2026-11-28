@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+    <div class="account-controls" th:fragment="controls(user)" th:if="${user != null}">
+        <span class="account-name" th:text="${user.username}"></span>
+        <form method="post" th:action="@{/logout}">
+            <button class="button" type="submit">Đăng xuất</button>
+        </form>
+    </div>
+</body>
+</html>

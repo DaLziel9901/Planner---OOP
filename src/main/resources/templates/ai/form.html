@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: page('Tạo kế hoạch bằng AI', 'ai', ~{::main})}">
 <head><meta charset="UTF-8"><title>Tạo kế hoạch bằng AI</title></head>
 <body>
-<main>
+<main id="main-content" class="page-content" tabindex="-1">
     <h1>Tạo kế hoạch bằng AI</h1>
     <p th:if="${error}" th:text="${error}" role="alert"></p>
     <p>Các nội dung bạn nhập sẽ được gửi đến dịch vụ AI đã cấu hình.</p>

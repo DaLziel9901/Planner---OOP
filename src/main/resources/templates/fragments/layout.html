@@ -33,8 +33,10 @@
                     <span th:case="'plans'">Kế hoạch</span>
                     <span th:case="'subplans'">Giai đoạn</span>
                     <span th:case="'tasks'">Công việc</span>
+                    <span th:case="'ai'">Kế hoạch bằng AI</span>
                 </li>
             </ol>
+            <div th:replace="~{fragments/account :: controls(${currentUser})}"></div>
         </header>
         <aside class="app-sidebar" id="planner-sidebar">
             <a class="app-brand" th:href="@{/plans}">

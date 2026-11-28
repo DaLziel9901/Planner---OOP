@@ -2,6 +2,7 @@ package com.example.planner.integration;
 
 import com.example.planner.controller.AuthController;
 import com.example.planner.controller.AiPlanController;
+import com.example.planner.controller.PlanController;
 import com.example.planner.ai.GeneratedPlanService;
 import com.example.planner.ai.PlanDraftService;
 import com.example.planner.model.AppUser;
@@ -11,12 +12,15 @@ import com.example.planner.security.PlannerPrincipal;
 import com.example.planner.security.PlannerUserDetailsService;
 import com.example.planner.security.SecurityConfig;
 import com.example.planner.service.RegistrationService;
+import com.example.planner.service.PlanService;
+import com.example.planner.service.PlanTreeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.test.context.TestComponent;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,8 +29,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 import org.thymeleaf.spring6.view.ThymeleafViewResolver;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
@@ -60,8 +63,10 @@ class AuthSecurityIntegrationTest {
             """;
     @TestConfiguration
     @EnableWebMvc
+    @ComponentScan(basePackageClasses = AuthController.class, useDefaultFilters = false,
+            includeFilters = @ComponentScan.Filter(type = FilterType.ANNOTATION, classes = ControllerAdvice.class))
     @Import({SecurityConfig.class, PasswordConfig.class, PlannerUserDetailsService.class,
-            RegistrationService.class, AuthController.class, AiPlanController.class, PrivateRoutes.class})
+            RegistrationService.class, AuthController.class, AiPlanController.class, PlanController.class})
     static class Config {
         @Bean
         UserRepository users() {
@@ -79,6 +84,16 @@ class AuthSecurityIntegrationTest {
         }
 
         @Bean
+        PlanService plans() {
+            return mock(PlanService.class);
+        }
+
+        @Bean
+        PlanTreeService trees() {
+            return mock(PlanTreeService.class);
+        }
+
+        @Bean
         ThymeleafViewResolver viewResolver() {
             var templates = new ClassLoaderTemplateResolver();
             templates.setPrefix("templates/");
@@ -91,15 +106,6 @@ class AuthSecurityIntegrationTest {
             views.setTemplateEngine(engine);
             views.setCharacterEncoding("UTF-8");
             return views;
-        }
-    }
-
-    @TestComponent
-    @RestController
-    static class PrivateRoutes {
-        @GetMapping("/plans")
-        String authenticatedRoute() {
-            return "authenticated";
         }
     }
 
@@ -220,6 +226,49 @@ class AuthSecurityIntegrationTest {
         return field.group(1);
     }
 
+    private static String postFormToken(String html, String action) {
+        var form = Pattern.compile("<form\\b(?=[^>]*\\bmethod=\"post\")(?=[^>]*\\baction=\""
+                + Pattern.quote(action) + "\")[^>]*>(.*?)</form>", Pattern.DOTALL).matcher(html);
+        assertTrue(form.find(), "Expected POST form for " + action);
+        String token = formToken(form.group(1));
+        assertFalse(form.find(), "Expected one POST form for " + action);
+        return token;
+    }
+
+    @Test
+    void sharedPlannerHeaderRendersAccountAndWorkingLogoutOutsideWorkspacePanels() throws Exception {
+        var login = mvc.perform(get("/login")).andExpect(status().isOk()).andReturn();
+        var session = (MockHttpSession) login.getRequest().getSession(false);
+        mvc.perform(post("/login").session(session)
+                        .param("_csrf", formToken(login.getResponse().getContentAsString()))
+                        .param("username", "alice").param("password", " sample password "))
+                .andExpect(redirectedUrl("/plans")).andExpect(authenticated());
+
+        String logoutToken = null;
+        for (String path : new String[]{"/plans", "/plans/new", "/ai/plans/new"}) {
+            var page = mvc.perform(get(path).session(session)).andExpect(status().isOk()).andReturn();
+            String html = page.getResponse().getContentAsString();
+            var header = Pattern.compile("<header class=\"app-header\">(.*?)</header>", Pattern.DOTALL)
+                    .matcher(html);
+            assertTrue(header.find(), path);
+            assertTrue(header.group(1).contains("class=\"account-name\">alice</span>"), path);
+            logoutToken = postFormToken(header.group(1), "/logout");
+            postFormToken(html, "/logout");
+        }
+
+        for (String path : new String[]{"/login", "/register"}) {
+            mvc.perform(get(path).session(session)).andExpect(status().isOk())
+                    .andExpect(content().string(not(containsString("action=\"/logout\""))));
+            mvc.perform(get(path)).andExpect(status().isOk())
+                    .andExpect(content().string(not(containsString("action=\"/logout\""))));
+        }
+
+        mvc.perform(post("/logout").session(session)).andExpect(status().isForbidden());
+        mvc.perform(post("/logout").session(session).param("_csrf", logoutToken))
+                .andExpect(redirectedUrl("/login")).andExpect(unauthenticated());
+        assertTrue(session.isInvalid());
+    }
+
     @Test
     void aiFormsRenderAndUseRealCsrfWithOneConfirmationPerSessionDraft() throws Exception {
         var alice = new PlannerPrincipal(42, "alice", "");
@@ -229,20 +278,21 @@ class AuthSecurityIntegrationTest {
         var session = (MockHttpSession) form.getRequest().getSession(false);
         assertNotNull(session);
         var preview = mvc.perform(post("/ai/plans/preview").session(session).with(user(alice))
-                        .param("_csrf", formToken(form.getResponse().getContentAsString()))
+                        .param("_csrf", postFormToken(form.getResponse().getContentAsString(), "/ai/plans/preview"))
                         .param("goal", "Read").param("level", "Beginner").param("durationDays", "7"))
                 .andExpect(status().isOk()).andExpect(view().name("ai/preview"))
                 .andExpect(content().string(containsString("&lt;b&gt;Reading plan&lt;/b&gt;")))
                 .andReturn();
         String firstId = preview.getModelAndView().getModel().get("draftId").toString();
-        String previewToken = formToken(preview.getResponse().getContentAsString());
+        postFormToken(preview.getResponse().getContentAsString(), "/logout");
+        String previewToken = postFormToken(preview.getResponse().getContentAsString(), "/ai/plans/edit");
         var edited = mvc.perform(post("/ai/plans/edit").session(session).with(user(alice))
                         .param("_csrf", previewToken).param("draftId", firstId)
                         .param("json", DRAFT_JSON.replace("<b>Reading plan</b>", "Edited plan")))
                 .andExpect(status().isOk()).andExpect(content().string(containsString("Edited plan"))).andReturn();
         String draftId = edited.getModelAndView().getModel().get("draftId").toString();
         assertNotEquals(firstId, draftId);
-        String editedToken = formToken(edited.getResponse().getContentAsString());
+        String editedToken = postFormToken(edited.getResponse().getContentAsString(), "/ai/plans/confirm");
 
         mvc.perform(post("/ai/plans/confirm").session(session).with(user(alice)).param("draftId", draftId))
                 .andExpect(status().isForbidden());

@@ -112,6 +112,21 @@ a:hover {
     text-decoration: underline;
 }
 
+.account-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    max-width: 100%;
+    margin-inline-start: auto;
+}
+
+.account-name {
+    color: var(--muted);
+    font-size: 0.875rem;
+    overflow-wrap: anywhere;
+}
+
 .app-sidebar {
     grid-area: sidebar;
     position: sticky;

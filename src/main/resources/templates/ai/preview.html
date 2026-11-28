@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: page('Bản nháp kế hoạch', 'ai', ~{::main})}">
 <head><meta charset="UTF-8"><title>Bản nháp kế hoạch</title></head>
 <body>
-<main>
+<main id="main-content" class="page-content" tabindex="-1">
     <h1 th:text="${draftTitle}">Bản nháp kế hoạch</h1>
     <p th:if="${error}" th:text="${error}" role="alert"></p>
     <form method="post" th:action="@{/ai/plans/edit}">
